@@ -39,7 +39,7 @@ export default function Home() {
               <Card className="overflow-hidden rounded-full w-64 h-64 sm:w-80 sm:h-80 lg:w-96 lg:h-96 shadow-2xl">
                 <CardContent className="p-0">
                   <Image
-                    src="/ashish oicc.jpg"
+                    src="/profile-new.jpg"
                     alt="A portrait of Ashish Kumar Ishwar."
                     data-ai-hint="professional portrait"
                     width={400}
