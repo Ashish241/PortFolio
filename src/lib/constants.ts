@@ -17,13 +17,13 @@ export const personalInfo: PersonalInfo = {
     <p>My core strengths lie in programming with Java (Core + Advanced), Python, C, and C++, alongside a strong command of Full-Stack Web Development technologies, including React. I am analytical, detail-oriented, and dedicated to the craft of writing clean, efficient, and scalable code.</p>
     <p>I am actively seeking challenging internship opportunities where I can apply my skills to real-world problems, gain valuable industry exposure, and contribute meaningfully to innovative software development teams.</p>
   `,
-  email: 'ashish@example.com',
+  email: 'ashishkum@gmail.com',
   bookingLink: 'https://cal.com/placeholder-for-ashish',
 };
 
 export const socialLinks: SocialLinks = {
-  linkedin: 'https://www.linkedin.com/in/placeholder',
-  github: 'https://github.com/placeholder',
+  linkedin: 'https://www.linkedin.com/in/ashish-kumar-ishwar-5a145528b',
+  github: 'https://github.com/Ashish241',
   email: `mailto:${personalInfo.email}`,
 };
 

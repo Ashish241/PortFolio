@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 const profileInfoForAI = `
 Name: ${personalInfo.name}
@@ -55,6 +55,7 @@ export default function ResumeForm() {
   const [state, dispatch] = useFormState(getResumeSuggestions, initialState);
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     if(state.message === 'Success!') {
@@ -62,7 +63,7 @@ export default function ResumeForm() {
             title: "Suggestions Ready!",
             description: "AI has generated resume optimization suggestions.",
         });
-    } else if (state.message) {
+    } else if (state.message && state.message !== 'Validation failed. Please check the fields.') {
         toast({
             variant: "destructive",
             title: "An error occurred",
@@ -101,7 +102,7 @@ export default function ResumeForm() {
           <CardDescription>Provide the job description you're targeting.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={dispatch} className="space-y-6">
+          <form action={dispatch} ref={formRef} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="jobDescription">Job Description</Label>
               <Textarea
@@ -114,8 +115,8 @@ export default function ResumeForm() {
               {state.errors?.jobDescription && <p className="text-sm text-destructive">{state.errors.jobDescription}</p>}
             </div>
 
-            <Textarea id="profileInformation" name="profileInformation" defaultValue={profileInfoForAI} className="hidden" />
-            <Textarea id="projectDetails" name="projectDetails" defaultValue={projectDetailsForAI} className="hidden" />
+            <input type="hidden" id="profileInformation" name="profileInformation" defaultValue={profileInfoForAI} />
+            <input type="hidden" id="projectDetails" name="projectDetails" defaultValue={projectDetailsForAI} />
             
             {state.errors?._form && (
                 <Alert variant="destructive">
