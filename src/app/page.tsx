@@ -2,13 +2,11 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight, Cloud, Code, Cpu, HardDrive } from 'lucide-react';
 import { personalInfo, skills } from '@/lib/constants';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 
 export default function Home() {
-  const profileImage = PlaceHolderImages.find(p => p.id === 'profile-photo');
   const skillBadges = ['Java', 'Python', 'C', 'C++', 'React', 'Cloud', 'Full-Stack'];
 
   return (
@@ -40,17 +38,15 @@ export default function Home() {
             <div className="flex items-center justify-center">
               <Card className="overflow-hidden rounded-full w-64 h-64 sm:w-80 sm:h-80 lg:w-96 lg:h-96 shadow-2xl">
                 <CardContent className="p-0">
-                  {profileImage && (
-                    <Image
-                      src={profileImage.imageUrl}
-                      alt={profileImage.description}
-                      data-ai-hint={profileImage.imageHint}
-                      width={400}
-                      height={400}
-                      className="aspect-square object-cover"
-                      priority
-                    />
-                  )}
+                  <Image
+                    src="/ashish oicc.jpg"
+                    alt="A portrait of Ashish Kumar Ishwar."
+                    data-ai-hint="professional portrait"
+                    width={400}
+                    height={400}
+                    className="aspect-square object-cover"
+                    priority
+                  />
                 </CardContent>
               </Card>
             </div>

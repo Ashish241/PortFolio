@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import { Target, BrainCircuit, Code, Rocket, GraduationCap } from 'lucide-react';
 import { personalInfo, skills, careerGoals, education } from '@/lib/constants';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export const metadata: Metadata = {
@@ -11,7 +10,6 @@ export const metadata: Metadata = {
 };
 
 export default function AboutPage() {
-  const profileImage = PlaceHolderImages.find(p => p.id === 'profile-photo');
 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-16 sm:py-24">
@@ -28,16 +26,14 @@ export default function AboutPage() {
         <div className="md:col-span-1">
           <Card className="overflow-hidden rounded-lg shadow-lg">
             <CardContent className="p-0">
-            {profileImage && (
               <Image
-                src={profileImage.imageUrl}
-                alt={profileImage.description}
-                data-ai-hint={profileImage.imageHint}
+                src="/ashish oicc.jpg"
+                alt="A portrait of Ashish Kumar Ishwar."
+                data-ai-hint="professional portrait"
                 width={400}
                 height={400}
                 className="aspect-square w-full object-cover"
               />
-            )}
             </CardContent>
           </Card>
         </div>
