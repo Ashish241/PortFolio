@@ -39,6 +39,15 @@ export async function submitContactForm(prevState: State, formData: FormData): P
   }
 
   try {
+    // Check for Firebase environment variables
+    if (!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || !process.env.FIREBASE_SERVICE_ACCOUNT) {
+      console.error('Firebase environment variables are not set.');
+      return {
+        message: 'Server configuration error. The contact form is not set up correctly.',
+        errors: { _form: ['The application is not connected to a backend service.'] },
+        success: false,
+      };
+    }
     await saveMessage(validatedFields.data);
     return {
       message: "Thank you for your message! I'll get back to you soon.",
