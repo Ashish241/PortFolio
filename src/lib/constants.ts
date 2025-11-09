@@ -11,7 +11,7 @@ export const personalInfo: PersonalInfo = {
   name: 'Ashish Kumar Ishwar',
   tagline: 'Aspiring Software Engineer | Focused on Full-Stack and Cloud Development',
   shortBio:
-    'Ashish is a B.Tech Computer Science student passionate about turning complex ideas into functional software. His core strengths include Java, Python, and C++, complemented by strong Full-Stack Web Development experience. He is committed to writing clean, efficient, and scalable code and is seeking challenging internships to contribute to innovative software teams.',
+    "I'm a B.Tech Computer Science student with a passion for turning complex ideas into functional software. My core strengths are Java, Python, and C++, complemented by strong Full-Stack Web Development experience. Committed to writing clean, efficient, and scalable code, I am seeking challenging internships to contribute to innovative software teams.",
   extendedBio: `
     <p>A B.Tech Computer Science student with a fervent passion for transforming complex ideas into elegant, functional software. My academic journey has equipped me with a robust foundation in computer science principles and a versatile skill set.</p>
     <p>My core strengths lie in programming with Java (Core + Advanced), Python, C, and C++, alongside a strong command of Full-Stack Web Development technologies, including React. I am analytical, detail-oriented, and dedicated to the craft of writing clean, efficient, and scalable code.</p>
