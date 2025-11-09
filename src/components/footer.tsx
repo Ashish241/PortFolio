@@ -11,7 +11,7 @@ export function Footer() {
       <div className="container grid items-center gap-8 px-4 py-12 md:grid-cols-3 md:px-6">
         <div className="flex flex-col items-start gap-2">
           <p className="font-headline text-lg font-semibold">{personalInfo.name}</p>
-          <p className="text-sm text-muted-foreground">© {new Date().getFullYear()} AshishIshwar. All rights reserved.</p>
+          <p className="text-sm text-muted-foreground">© {new Date().getFullYear()} {personalInfo.name}. All rights reserved.</p>
         </div>
         
         <nav className="flex flex-col gap-2 sm:flex-row sm:gap-4 md:justify-center">

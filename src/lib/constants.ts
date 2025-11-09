@@ -8,7 +8,7 @@ import type {
 } from './types';
 
 export const personalInfo: PersonalInfo = {
-  name: 'AshishIshwar',
+  name: 'Ashish Kumar Ishwar',
   tagline: 'Aspiring Software Engineer | Focused on Full-Stack and Cloud Development',
   shortBio:
     'Ashish is a B.Tech Computer Science student passionate about turning complex ideas into functional software. His core strengths include Java, Python, and C++, complemented by strong Full-Stack Web Development experience. He is committed to writing clean, efficient, and scalable code and is seeking challenging internships to contribute to innovative software teams.',
@@ -24,7 +24,7 @@ export const personalInfo: PersonalInfo = {
 export const socialLinks: SocialLinks = {
   linkedin: 'https://www.linkedin.com/in/ashish-kumar-ishwar-5a145528b',
   github: 'https://github.com/Ashish241',
-  email: `mailto:${personalInfo.email}`,
+  email: `mailto:ashishkum@gmail.com`,
 };
 
 export const navLinks: NavLinks = [
