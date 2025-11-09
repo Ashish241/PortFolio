@@ -46,7 +46,7 @@ export default function ContactPage() {
         description: state.message,
       });
       formRef.current?.reset();
-    } else if (state.message) {
+    } else if (state.message && !state.success) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -75,25 +75,25 @@ export default function ContactPage() {
                 <div className="space-y-2">
                   <Label htmlFor="name">Name</Label>
                   <Input id="name" name="name" placeholder="Your Name" />
-                  {state.errors?.name && <p className="text-sm text-destructive">{state.errors.name}</p>}
+                  {state.errors?.name && <p className="text-sm text-destructive">{state.errors.name.join(', ')}</p>}
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input id="email" name="email" type="email" placeholder="your.email@example.com" />
-                  {state.errors?.email && <p className="text-sm text-destructive">{state.errors.email}</p>}
+                  {state.errors?.email && <p className="text-sm text-destructive">{state.errors.email.join(', ')}</p>}
                 </div>
                 
                 <div className="space-y-2">
                   <Label htmlFor="message">Message</Label>
                   <Textarea id="message" name="message" placeholder="How can I help you?" />
-                  {state.errors?.message && <p className="text-sm text-destructive">{state.errors.message}</p>}
+                  {state.errors?.message && <p className="text-sm text-destructive">{state.errors.message.join(', ')}</p>}
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="budget">Budget (Optional)</Label>
                   <Input id="budget" name="budget" placeholder="e.g., $1000 - $2000" />
-                   {state.errors?.budget && <p className="text-sm text-destructive">{state.errors.budget}</p>}
+                   {state.errors?.budget && <p className="text-sm text-destructive">{state.errors.budget.join(', ')}</p>}
                 </div>
 
                 {state.errors?._form && (
