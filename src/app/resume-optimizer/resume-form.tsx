@@ -1,7 +1,8 @@
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState, useFormStatus } from 'react-dom';
 import { Sparkles, Loader2, Clipboard, Download, Check } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
 
 import { getResumeSuggestions, type State } from './actions';
 import { personalInfo, projects } from '@/lib/constants';
@@ -11,7 +12,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState, useRef } from 'react';
 
 const profileInfoForAI = `
 Name: ${personalInfo.name}
@@ -52,7 +52,7 @@ function SubmitButton() {
 
 export default function ResumeForm() {
   const initialState: State = { message: '' };
-  const [state, dispatch] = useFormState(getResumeSuggestions, initialState);
+  const [state, dispatch] = useActionState(getResumeSuggestions, initialState);
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -63,11 +63,12 @@ export default function ResumeForm() {
             title: "Suggestions Ready!",
             description: "AI has generated resume optimization suggestions.",
         });
+        formRef.current?.reset();
     } else if (state.message && state.message !== 'Validation failed. Please check the fields.') {
         toast({
             variant: "destructive",
             title: "An error occurred",
-            description: state.message || "Failed to get suggestions.",
+            description: state.errors?._form?.join(', ') || state.message || "Failed to get suggestions.",
         });
     }
   }, [state, toast]);
@@ -112,7 +113,7 @@ export default function ResumeForm() {
                 rows={10}
                 required
               />
-              {state.errors?.jobDescription && <p className="text-sm text-destructive">{state.errors.jobDescription}</p>}
+              {state.errors?.jobDescription && <p className="text-sm text-destructive">{state.errors.jobDescription.join(', ')}</p>}
             </div>
 
             <input type="hidden" id="profileInformation" name="profileInformation" defaultValue={profileInfoForAI} />
@@ -120,7 +121,7 @@ export default function ResumeForm() {
             
             {state.errors?._form && (
                 <Alert variant="destructive">
-                    <AlertDescription>{state.errors._form}</AlertDescription>
+                    <AlertDescription>{state.errors._form.join(', ')}</AlertDescription>
                 </Alert>
             )}
 
