@@ -10,6 +10,7 @@ import { navLinks, personalInfo } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { ThemeToggle } from './theme-toggle';
+import Image from 'next/image';
 
 export function Header() {
   const pathname = usePathname();
@@ -20,7 +21,7 @@ export function Header() {
       <div className="container flex h-16 items-center">
         <div className="mr-4 hidden md:flex">
           <Link href="/" className="mr-6 flex items-center space-x-2">
-            <Mountain className="h-6 w-6" />
+            <Image src="/icon-192x192.png" alt={personalInfo.name} width={32} height={32} />
             <span className="hidden font-bold sm:inline-block">
               {personalInfo.name}
             </span>
