@@ -7,14 +7,7 @@ import React, { useEffect, useRef } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { personalInfo } from "@/lib/constants"
 import { Button } from "@/components/ui/button"
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
+import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -47,20 +40,18 @@ export default function ContactPage() {
   const [state, dispatch] = useFormState(submitContactForm, initialState);
 
   useEffect(() => {
-    if (state.message) {
-      if (state.success) {
-        toast({
-          title: "Message Sent!",
-          description: state.message,
-        });
-        formRef.current?.reset();
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: state.message,
-        });
-      }
+    if (state.success) {
+      toast({
+        title: "Message Sent!",
+        description: state.message,
+      });
+      formRef.current?.reset();
+    } else if (state.message) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: state.message,
+      });
     }
   }, [state, toast]);
 

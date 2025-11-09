@@ -17,7 +17,7 @@ const profileInfoForAI = `
 Name: ${personalInfo.name}
 Bio: ${personalInfo.shortBio}
 ---
-${personalInfo.extendedBio.replace(/<p>|<\/p>/g, '')}
+${personalInfo.extendedBio.replace(/<p>|<\/p>|<b>|<\/b>/g, '')}
 `;
 
 const projectDetailsForAI = projects.map(p => `
