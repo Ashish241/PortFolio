@@ -1,6 +1,7 @@
 'use client'
 
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import { Mail, Calendar, Send, Loader2 } from 'lucide-react'
 import Link from "next/link"
 import React, { useEffect, useRef } from "react"
@@ -37,7 +38,7 @@ export default function ContactPage() {
   const formRef = useRef<HTMLFormElement>(null);
   
   const initialState: State = { message: '' };
-  const [state, dispatch] = useFormState(submitContactForm, initialState);
+  const [state, dispatch] = useActionState(submitContactForm, initialState);
 
   useEffect(() => {
     if (state.success) {
