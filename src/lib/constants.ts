@@ -8,7 +8,7 @@ import type {
 } from './types';
 
 export const personalInfo: PersonalInfo = {
-  name: 'Ashish Kumar Ishwar',
+  name: 'AshishIshwar',
   tagline: 'Aspiring Software Engineer | Focused on Full-Stack and Cloud Development',
   shortBio:
     'Ashish is a B.Tech Computer Science student passionate about turning complex ideas into functional software. His core strengths include Java, Python, and C++, complemented by strong Full-Stack Web Development experience. He is committed to writing clean, efficient, and scalable code and is seeking challenging internships to contribute to innovative software teams.',

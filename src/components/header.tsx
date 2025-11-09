@@ -80,7 +80,7 @@ export function Header() {
         
         <Link href="/" className="flex items-center space-x-2 md:hidden">
           <Mountain className="h-6 w-6" />
-          <span className="font-bold">{personalInfo.name.split(' ')[0]}</span>
+          <span className="font-bold">{personalInfo.name}</span>
         </Link>
         
         <div className="flex flex-1 items-center justify-end space-x-2">
