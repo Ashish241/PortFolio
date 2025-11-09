@@ -1,10 +1,11 @@
-
 'use client'
 
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
+import { useFormState, useFormStatus } from "react-dom";
 import { Mail, Calendar, Send, Loader2 } from 'lucide-react'
+import Link from "next/link"
+import React, { useEffect, useRef } from "react"
+import { useToast } from "@/hooks/use-toast"
+import { personalInfo } from "@/lib/constants"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -17,45 +18,51 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { useToast } from "@/hooks/use-toast"
-import { personalInfo } from "@/lib/constants"
-import Link from "next/link"
-import React from "react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { submitContactForm, type State } from './actions';
 
-const formSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters."),
-  email: z.string().email("Please enter a valid email address."),
-  message: z.string().min(10, "Message must be at least 10 characters."),
-  budget: z.string().optional(),
-})
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" className="w-full" disabled={pending}>
+      {pending ? (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Sending...
+        </>
+      ) : (
+        <>
+          Send Message <Send className="ml-2 h-4 w-4" />
+        </>
+      )}
+    </Button>
+  );
+}
 
 export default function ContactPage() {
   const { toast } = useToast()
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  
+  const initialState: State = { message: '' };
+  const [state, dispatch] = useFormState(submitContactForm, initialState);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: "",
-      email: "",
-      message: "",
-      budget: "",
-    },
-  })
-
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsSubmitting(true);
-    // Placeholder for form submission logic
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    console.log(values);
-    
-    toast({
-      title: "Message Sent!",
-      description: "Thank you for reaching out. I'll get back to you soon.",
-    })
-    form.reset();
-    setIsSubmitting(false);
-  }
+  useEffect(() => {
+    if (state.message) {
+      if (state.success) {
+        toast({
+          title: "Message Sent!",
+          description: state.message,
+        });
+        formRef.current?.reset();
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: state.message,
+        });
+      }
+    }
+  }, [state, toast]);
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-16 sm:py-24">
@@ -73,74 +80,39 @@ export default function ContactPage() {
             <CardDescription>Fill out the form and I'll get back to you.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Your Name" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input placeholder="your.email@example.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="message"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Message</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="How can I help you?" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="budget"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Budget (Optional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., $1000 - $2000" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sending...
-                    </>
-                  ) : (
-                    <>
-                      Send Message <Send className="ml-2 h-4 w-4" />
-                    </>
-                  )}
-                </Button>
+            <form ref={formRef} action={dispatch} className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name</Label>
+                  <Input id="name" name="name" placeholder="Your Name" />
+                  {state.errors?.name && <p className="text-sm text-destructive">{state.errors.name}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" name="email" type="email" placeholder="your.email@example.com" />
+                  {state.errors?.email && <p className="text-sm text-destructive">{state.errors.email}</p>}
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="message">Message</Label>
+                  <Textarea id="message" name="message" placeholder="How can I help you?" />
+                  {state.errors?.message && <p className="text-sm text-destructive">{state.errors.message}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="budget">Budget (Optional)</Label>
+                  <Input id="budget" name="budget" placeholder="e.g., $1000 - $2000" />
+                   {state.errors?.budget && <p className="text-sm text-destructive">{state.errors.budget}</p>}
+                </div>
+
+                {state.errors?._form && (
+                    <Alert variant="destructive">
+                        <AlertDescription>{state.errors._form.join(', ')}</AlertDescription>
+                    </Alert>
+                )}
+
+                <SubmitButton />
               </form>
-            </Form>
           </CardContent>
         </Card>
         
