@@ -50,7 +50,7 @@ export default function ProjectsPage() {
                     data-ai-hint={img.imageHint}
                     width={800}
                     height={600}
-                    className="aspect-video w-full object-cover"
+                    className="aspect-video w-full"
                 />
               </div>
             ))}
@@ -91,13 +91,13 @@ export default function ProjectsPage() {
               </div>
             </div>
 
-            <div className="text-center pt-8">
+            {/* <div className="text-center pt-8">
               <Button asChild size="lg">
                 <Link href={project.link} target="_blank" rel="noopener noreferrer">
                   View Live Project (Placeholder) <ArrowRight className="ml-2 h-5 w-5"/>
                 </Link>
               </Button>
-            </div>
+            </div> */}
           </div>
         </CardContent>
       </Card>

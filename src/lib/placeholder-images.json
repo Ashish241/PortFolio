@@ -9,19 +9,19 @@
     {
       "id": "squadsync-1",
       "description": "Screenshot of SquadSync dashboard.",
-      "imageUrl": "https://images.unsplash.com/photo-1666014206211-76f4db0ab76c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxkYXNoYm9hcmQlMjB1aXxlbnwwfHx8fDE3NjI1NzAyMDZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "/Dashboard.png",
       "imageHint": "dashboard ui"
     },
     {
       "id": "squadsync-2",
       "description": "Screenshot of SquadSync task management.",
-      "imageUrl": "https://images.unsplash.com/photo-1631203924374-df5be6a1ae4d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxrYW5iYW4lMjBib2FyZHxlbnwwfHx8fDE3NjI2MTUyNzN8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "/task_manager.png",
       "imageHint": "kanban board"
     },
     {
       "id": "squadsync-3",
       "description": "Screenshot of SquadSync team view.",
-      "imageUrl": "https://picsum.photos/seed/squadsync3/800/600",
+      "imageUrl": "/team_view.png",
       "imageHint": "team profiles"
     }
   ]

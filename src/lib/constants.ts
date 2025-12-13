@@ -38,7 +38,7 @@ export const navLinks: NavLinks = [
 ];
 
 export const skills: Skills = {
-  primary: ['Cloud Developer', 'Frontend Developer'],
+  primary: ['Cloud Developer', 'Full-Stack Developer'],
   technical: [
     'Java (Core + Advanced)',
     'Python',
