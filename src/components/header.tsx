@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, Mountain } from 'lucide-react';
+import { Menu} from 'lucide-react';
 import { useState } from 'react';
 
 import { cn } from '@/lib/utils';
@@ -58,7 +58,7 @@ export function Header() {
               className="mb-4 flex items-center"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              <Mountain className="mr-2 h-6 w-6" />
+              
               <span className="font-bold">{personalInfo.name}</span>
             </Link>
             <div className="flex flex-col space-y-3">
@@ -80,7 +80,7 @@ export function Header() {
         </Sheet>
         
         <Link href="/" className="flex items-center space-x-2 md:hidden">
-          <Mountain className="h-6 w-6" />
+          
           <span className="font-bold">{personalInfo.name}</span>
         </Link>
         
