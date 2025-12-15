@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useFormStatus } from 'react-dom';
+import { useFormState, useFormStatus } from 'react-dom';
 import { Sparkles, Loader2, Clipboard, Download, Check } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 
@@ -52,7 +52,7 @@ function SubmitButton() {
 
 export default function ResumeForm() {
   const initialState: State = { message: '' };
-  const [state, dispatch] = useActionState(getResumeSuggestions, initialState);
+  const [state, dispatch] = useFormState(getResumeSuggestions, initialState);
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, Poppins } from 'next/font/google';
+import { Suspense } from 'react';
 import { cn } from '@/lib/utils';
 import { personalInfo } from '@/lib/constants';
 import { ThemeProvider } from '@/components/theme-provider';
@@ -88,7 +89,9 @@ export default function RootLayout({
             <Footer />
           </div>
           <Toaster />
-          <Analytics />
+          <Suspense fallback={null}>
+            <Analytics />
+          </Suspense>
         </ThemeProvider>
       </body>
     </html>
