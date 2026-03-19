@@ -7,7 +7,6 @@ const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
   email: z.string().email("Please enter a valid email address."),
   message: z.string().min(10, "Message must be at least 10 characters."),
-  budget: z.string().optional(),
 });
 
 export type State = {
@@ -17,7 +16,6 @@ export type State = {
     name?: string[];
     email?: string[];
     message?: string[];
-    budget?: string[];
     _form?: string[];
   };
 };
@@ -27,7 +25,6 @@ export async function submitContactForm(prevState: State, formData: FormData): P
     name: formData.get('name'),
     email: formData.get('email'),
     message: formData.get('message'),
-    budget: formData.get('budget'),
   });
 
   if (!validatedFields.success) {

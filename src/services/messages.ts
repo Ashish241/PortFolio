@@ -5,7 +5,6 @@ type Message = {
     name: string;
     email: string;
     message: string;
-    budget?: string;
 }
 
 export async function saveMessage(message: Message) {

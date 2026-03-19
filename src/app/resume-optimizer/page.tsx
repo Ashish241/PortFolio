@@ -19,6 +19,11 @@ export default function ResumeOptimizerPage() {
         </p>
       </header>
       
+      <div className="mx-auto mb-12 max-w-2xl rounded-lg border border-primary/20 bg-primary/10 p-6 text-center text-primary">
+        <h2 className="mb-2 font-headline text-xl font-semibold sm:text-2xl">Coming Soon!</h2>
+        <p>The AI-powered Resume Optimizer is currently under development and will be available soon. Stay tuned for exciting updates!</p>
+      </div>
+
       <ResumeForm />
     </div>
   );
