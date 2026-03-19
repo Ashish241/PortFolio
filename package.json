@@ -61,6 +61,7 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "baseline-browser-mapping": "^2.10.9",
     "cross-env": "^10.1.0",
     "genkit-cli": "^1.26.0",
     "postcss": "^8",

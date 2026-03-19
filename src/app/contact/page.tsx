@@ -91,11 +91,6 @@ export default function ContactPage() {
                   {state.errors?.message && <p className="text-sm text-destructive">{state.errors.message.join(', ')}</p>}
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="budget">Budget (Optional)</Label>
-                  <Input id="budget" name="budget" placeholder="e.g., $1000 - $2000" />
-                   {state.errors?.budget && <p className="text-sm text-destructive">{state.errors.budget.join(', ')}</p>}
-                </div>
 
                 {state.errors?._form && (
                     <Alert variant="destructive">

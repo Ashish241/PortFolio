@@ -9,22 +9,22 @@ import type {
 
 export const personalInfo: PersonalInfo = {
   name: 'Ashish Kumar Ishwar',
-  tagline: 'Aspiring Software Engineer | Focused on Full-Stack and Cloud Development',
+  tagline: 'Cloud Computing Enthusiast & DevOps-focused Software Engineer',
   shortBio:
-    "I'm a B.Tech Computer Science student with a passion for turning complex ideas into functional software. My core strengths are Java, Python, and C++, complemented by strong Full-Stack Web Development experience. Committed to writing clean, efficient, and scalable code, I am seeking challenging internships to contribute to innovative software teams.",
+    "I am a Cloud and DevOps-focused B.Tech Computer Science student with hands-on experience in containerization, Kubernetes orchestration, and cloud-native deployments. I am a proactive problem solver passionate about building scalable, fault-tolerant systems and optimizing deployment workflows. I am seeking a Cloud/DevOps Internship to apply infrastructure automation and cloud engineering skills in real-world environments.",
   extendedBio: `
-    <p>A B.Tech Computer Science student with a fervent passion for transforming complex ideas into elegant, functional software. My academic journey has equipped me with a robust foundation in computer science principles and a versatile skill set.</p>
-    <p>My core strengths lie in programming with Java (Core + Advanced), Python, C, and C++, alongside a strong command of Full-Stack Web Development technologies, including React. I am analytical, detail-oriented, and dedicated to the craft of writing clean, efficient, and scalable code.</p>
-    <p>I am actively seeking challenging internship opportunities where I can apply my skills to real-world problems, gain valuable industry exposure, and contribute meaningfully to innovative software development teams.</p>
+    <p>I am a B.Tech Computer Science student with a fervent passion for Cloud Computing and DevOps. My academic journey and hands-on projects have equipped me with a robust foundation in containerization, Kubernetes orchestration, and cloud-native deployments.</p>
+    <p>My core strengths lie in programming languages such as C, C++, Java, and Python. Additionally, I have a strong command of Full-Stack Web Development frameworks (React, TypeScript, Node.js) and DevOps tools like Docker, Kubernetes, and CI/CD pipelines. I am a proactive problem solver, detail-oriented, and dedicated to building scalable, fault-tolerant systems.</p>
+    <p>I am actively seeking challenging Cloud/DevOps internship opportunities where I can apply infrastructure automation and cloud engineering skills to real-world environments, gain valuable industry exposure, and contribute meaningfully to innovative software development teams.</p>
   `,
-  email: 'ashishkum@gmail.com',
+  email: 'ashishkum2411@gmail.com',
   bookingLink: 'https://cal.com/placeholder-for-ashish',
 };
 
 export const socialLinks: SocialLinks = {
-  linkedin: 'https://www.linkedin.com/in/ashish-kumar-ishwar-5a145528b',
+  linkedin: 'https://linkedin.com/in/ashish-ishwar',
   github: 'https://github.com/Ashish241',
-  email: `mailto:ashishkum@gmail.com`,
+  email: `mailto:ashishkum2411@gmail.com`,
 };
 
 export const navLinks: NavLinks = [
@@ -38,71 +38,105 @@ export const navLinks: NavLinks = [
 ];
 
 export const skills: Skills = {
-  primary: ['Cloud Developer', 'Full-Stack Developer'],
+  primary: ['Cloud Platforms (GCP)', 'Containerization & Orchestration', 'DevOps & CI/CD Concepts'],
   technical: [
-    'Java (Core + Advanced)',
+    'Docker',
+    'Kubernetes',
+    'Java (Core & Advanced)',
     'Python',
     'C',
     'C++',
-    'React.js',
+    'React & TypeScript',
     'HTML/CSS/JS',
-    'Cloud fundamentals',
+    'SQL',
+    'Linux Administration',
     'Git/GitHub',
   ],
-  soft: ['Analytical problem solving', 'Clean coding', 'Team collaboration', 'Fast learner'],
-  learning: ['Advanced Cloud services (AWS/GCP)', 'The React ecosystem (Next.js, Redux)', 'Backend frameworks (Node.js, Spring Boot)'],
+  soft: ['Problem Solving', 'Quick Learner', 'Time Management', 'Adaptability'],
+  learning: ['Advanced Kubernetes (Helm, Metrics)', 'Predictive Auto-scaling', 'Cloud-native Observability'],
 };
 
 export const careerGoals = [
-  "Secure a challenging software development internship.",
-  "Transition into a full-time junior developer role post-graduation.",
-  "Engage in freelance web development to solve unique business problems.",
-  "Continuously learn and master new technologies in cloud and full-stack development."
+  "Secure a challenging Cloud/DevOps or Software Development internship.",
+  "Apply infrastructure automation and cloud engineering skills in real-world environments.",
+  "Continuously learn and master new technologies in Kubernetes, CI/CD, and full-stack development.",
+  "Build scalable, fault-tolerant systems and optimize deployment workflows."
 ];
 
 export const projects: Project[] = [
   {
-    title: 'SquadSync',
-    description:
-      'A modern team collaboration platform enabling squads to manage tasks, share updates, and coordinate projects efficiently.',
-    role: 'Full-Stack / Frontend Developer',
+    title: 'Kubernetes Auto-Scaling Intelligence Engine (KubASIE)',
+    description: 'A predictive Kubernetes auto-scaler that dynamically adjusts Horizontal Pod Autoscalers to optimize architecture costs while maintaining SLAs.',
+    role: 'Cloud / DevOps Engineer',
+    techStack: ['PyTorch (LSTM)', 'Facebook Prophet', 'FastAPI', 'React/Vite', 'Docker', 'Helm', 'Kubernetes'],
+    features: [
+      'Predictive traffic models to anticipate cluster load up to 60 minutes ahead.',
+      'Hybrid policy REST API to serve scaling metrics, manual overrides, and predictions.',
+      'Observability dashboard to visualize cost savings and Prometheus metrics.',
+      'Containerized and orchestrated the stack using Docker and Helm.',
+    ],
+    problem: 'Kubernetes native HPA only scales reactively resulting in potential latency spikes or over-provisioning during rapid traffic changes.',
+    solution: 'KubASIE implements predictive traffic models using AI algorithms to anticipate load and scale pods proactively, ensuring SLA compliance and cost efficiency.',
+    techApproach: 'Trained models (LSTM & Prophet) process metrics and expose scaling policies via a FastAPI REST API. The entire infrastructure is containerized and orchestrated via Docker and Helm.',
+    results: 'Optimized architecture costs by reducing over-provisioning while preventing downtime from sudden traffic spikes.',
+    link: 'https://github.com/Ashish241/KubASIE',
+    imageIds: ['squadsync-1', 'squadsync-2', 'squadsync-3'],
+  },
+  {
+    title: 'Portfolio Website',
+    description: 'A fully responsive portfolio showcasing technical skills, projects, and educational background using React and TypeScript.',
+    role: 'Frontend Developer',
+    techStack: ['React', 'TypeScript', 'Tailwind CSS', 'Next.js'],
+    features: [
+      'Developed with modular and reusable components.',
+      'Optimized UI performance and ensured cross-device compatibility.',
+      'Integrated GitHub repositories and structured project showcases for professional presentation.',
+      'Applied version control best practices using Git.',
+    ],
+    problem: 'Needed a professional digital presence to consolidate projects, skills, and resume details in a modern format.',
+    solution: 'Created a static, highly performant portfolio website using the React ecosystem.',
+    techApproach: 'Leveraged Next.js framework, Typescript for type safety, and Tailwind CSS for rapid UI development and styling.',
+    results: 'Delivered an accessible and fast web application to serve as an interactive resume.',
+    link: 'https://github.com/Ashish241/PortFolio',
+    imageIds: ['squadsync-1', 'squadsync-2', 'squadsync-3'],
+  },
+  {
+    title: 'SquadSync \u2013 Gaming Collaboration Platform',
+    description: 'A team collaboration platform enabling matchmaking, user interaction, and efficient task management.',
+    role: 'Full-Stack Developer',
     techStack: ['React', 'JavaScript', 'Node.js', 'REST APIs'],
     features: [
-      'Project dashboards for at-a-glance progress tracking.',
+      'Project dashboards for team tracking and task management.',
       'Real-time updates for seamless team communication.',
-      'Comprehensive team and user management capabilities.',
-      'Intuitive task management with assignment and status tracking.',
+      'Designed scalable frontend architecture and structured project workflow.',
+      'Implemented modular component-based development approach.',
     ],
-    problem:
-      'Teams often struggle with fragmented communication and project tracking, using multiple disjointed tools which leads to inefficiency and loss of information.',
-    solution:
-      'SquadSync provides a unified, centralized platform that integrates task management, team communication, and project oversight into a single, intuitive interface, boosting productivity and collaboration.',
-    techApproach:
-      'Built with a modern frontend using React for a dynamic and responsive user experience. The backend, powered by Node.js, exposes REST APIs to handle data flow and business logic, ensuring a scalable and maintainable architecture.',
-    results:
-      'The platform demonstrates strong design thinking, a robust technical architecture, and a focus on UI/UX, resulting in a tool that is both powerful and easy to use for development squads.',
-    link: '#',
+    problem: 'Teams often struggle with fragmented communication and project tracking, using multiple disjointed tools which leads to inefficiency and loss of information.',
+    solution: 'SquadSync provides a unified, centralized platform that integrates task management, team communication, and project oversight into a single, intuitive interface, boosting productivity and collaboration.',
+    techApproach: 'Built with a modern frontend using React for a dynamic and responsive user experience. The backend, powered by Node.js, exposes REST APIs to handle data flow and business logic, ensuring a scalable and maintainable architecture.',
+    results: 'The platform demonstrates strong design thinking, a robust technical architecture, and a focus on UI/UX, resulting in a tool that is both powerful and easy to use for development squads.',
+    link: 'https://github.com/Ashish241/squadsync',
     imageIds: ['squadsync-1', 'squadsync-2', 'squadsync-3'],
   },
 ];
 
 export const education: Education[] = [
-    {
-      institution: "Amity University Jharkhand",
-      degree: "B.Tech Computer Science",
-      period: "Present",
-      description: "Focusing on core computer science principles, software development, and algorithms."
-    },
-    {
-      institution: "Gossner College Ranchi",
-      degree: "12th Grade",
-      period: "2023",
-      description: "Completed with a focus on science and mathematics, building a strong analytical foundation."
-    },
-    {
-      institution: "Saraswati Shishu Vidya Mandir",
-      degree: "10th Grade",
-      period: "2021",
-      description: "Established a disciplined approach to learning and academic excellence."
-    }
-]
+  {
+    institution: "Amity University Jharkhand",
+    degree: "B.Tech Computer Science Engineering",
+    period: "Expected Graduation: 2027",
+    description: "CGPA: 7.6. Focusing on core computer science principles, software development, containerization, and cloud technologies."
+  },
+  {
+    institution: "Gossner College, Ranchi",
+    degree: "12th Grade",
+    period: "2023",
+    description: "Completed with a score of 66%, building a strong analytical and scientific foundation."
+  },
+  {
+    institution: "Saraswati Shishu Vidya Mandir",
+    degree: "10th Grade",
+    period: "2021",
+    description: "Completed with a score of 77%, establishing a disciplined approach to learning and academic excellence."
+  }
+];

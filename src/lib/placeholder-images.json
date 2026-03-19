@@ -3,25 +3,25 @@
     {
       "id": "profile-photo",
       "description": "A portrait of Ashish Kumar Ishwar.",
-      "imageUrl": "/ashish-pic.jpg",
+      "imageUrl": "/images/ashish-pic.jpg",
       "imageHint": "professional portrait"
     },
     {
       "id": "squadsync-1",
       "description": "Screenshot of SquadSync dashboard.",
-      "imageUrl": "/Dashboard.png",
+      "imageUrl": "/images/Dashboard-Overview.png",
       "imageHint": "dashboard ui"
     },
     {
       "id": "squadsync-2",
       "description": "Screenshot of SquadSync task management.",
-      "imageUrl": "/task_manager.png",
+      "imageUrl": "/images/Traffic-predictions.png",
       "imageHint": "kanban board"
     },
     {
       "id": "squadsync-3",
       "description": "Screenshot of SquadSync team view.",
-      "imageUrl": "/team_view.png",
+      "imageUrl": "/images/Cost-Analysis.png",
       "imageHint": "team profiles"
     }
   ]
