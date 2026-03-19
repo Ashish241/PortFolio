@@ -27,7 +27,7 @@ export default function AboutPage() {
           <Card className="overflow-hidden rounded-lg shadow-lg">
             <CardContent className="p-0">
               <Image
-                src="/ashish-pic.jpg"
+                src="/images/ashish-pic.jpg"
                 alt="A portrait of Ashish Kumar Ishwar."
                 data-ai-hint="professional portrait"
                 width={400}
