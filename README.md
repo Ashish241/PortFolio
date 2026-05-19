@@ -2,7 +2,7 @@
 
 A modern, responsive personal portfolio website built with **TypeScript** and deployed on Vercel.
 
-🌐 **Live Site:** [port-folio-delta-wine.versel.app](https://port-folio-delta-wine.versel.app)
+🌐 **Live Site:** [port-folio-delta-wine.versel.app](https://port-folio-delta-wine.vercel.app/)
 
 ---
 
