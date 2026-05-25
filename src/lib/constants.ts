@@ -28,13 +28,13 @@ export const socialLinks: SocialLinks = {
 };
 
 export const navLinks: NavLinks = [
-  { href: '/', label: 'Home' },
-  { href: '/about', label: 'About' },
-  { href: '/projects', label: 'Projects' },
-  { href: '/skills', label: 'Skills' },
-  { href: '/education', label: 'Education' },
-  { href: '/resume-optimizer', label: 'Resume AI' },
-  { href: '/contact', label: 'Contact' },
+  { href: '/#home', label: 'Home' },
+  { href: '/#about', label: 'About' },
+  { href: '/#projects', label: 'Projects' },
+  { href: '/#skills', label: 'Skills' },
+  { href: '/#education', label: 'Education' },
+  { href: '/#resume', label: 'Resume AI' },
+  { href: '/#contact', label: 'Contact' },
 ];
 
 export const skills: Skills = {

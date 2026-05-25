@@ -5,13 +5,19 @@ import { personalInfo, skills } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import AboutPage from './about/page';
+import ProjectsPage from './projects/page';
+import SkillsPage from './skills/page';
+import EducationPage from './education/page';
+import ResumeOptimizerPage from './resume-optimizer/page';
+import ContactPage from './contact/page';
 
 export default function Home() {
   const skillBadges = ['Java', 'Python', 'C', 'C++', 'React', 'Cloud', 'Full-Stack'];
 
   return (
     <div className="flex flex-col">
-      <section className="w-full py-20 md:py-32 lg:py-40 bg-background">
+      <section id="home" className="w-full py-20 md:py-32 lg:py-40 bg-background">
         <div className="container px-4 md:px-6">
           <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
             <div className="flex flex-col justify-center space-y-6">
@@ -26,12 +32,12 @@ export default function Home() {
               </p>
               <div className="flex flex-col gap-4 sm:flex-row">
                 <Button asChild size="lg">
-                  <Link href="/projects">
+                  <Link href="#projects">
                     View Projects <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
                 <Button asChild size="lg" variant="secondary">
-                  <Link href="/contact">Hire Me</Link>
+                  <Link href="#contact">Hire Me</Link>
                 </Button>
               </div>
             </div>
@@ -39,7 +45,7 @@ export default function Home() {
               <Card className="overflow-hidden rounded-full w-64 h-64 sm:w-80 sm:h-80 lg:w-96 lg:h-96 shadow-2xl">
                 <CardContent className="p-0">
                   <Image
-                    src="/images/ashish-pic.jpg" 
+                    src="/images/ashish-pic.jpg"
                     alt="A portrait of Ashish Kumar Ishwar."
                     data-ai-hint="professional portrait"
                     width={400}
@@ -105,6 +111,13 @@ export default function Home() {
             </div>
         </div>
       </section>
+
+      <div id="about"><AboutPage /></div>
+      <div id="projects"><ProjectsPage /></div>
+      <div id="skills"><SkillsPage /></div>
+      <div id="education"><EducationPage /></div>
+      <div id="resume"><ResumeOptimizerPage /></div>
+      <div id="contact"><ContactPage /></div>
     </div>
   );
 }

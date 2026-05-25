@@ -8,6 +8,7 @@ import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { Toaster } from '@/components/ui/toaster';
 import { Analytics } from '@/components/analytics';
+// @ts-ignore: CSS imports are handled by Next.js
 import './globals.css';
 
 const fontBody = Inter({
