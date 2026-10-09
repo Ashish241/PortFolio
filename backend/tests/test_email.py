@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.models import ContactMessage
 from app.services import email_service
+from app import retry_email
 from test_api import client, payload
 
 def test_email_development_fallback_preserves_new_message(client, caplog):
@@ -43,3 +44,25 @@ def test_plaintext_smtp_notification_and_failure_do_not_lose_message(client, mon
         assert len(records)==2 and records[-1].status=='NEW' and records[-1].email_delivery_status=='FAILED'
     assert 'Stored message retained' in caplog.text
     assert 'test-password' not in caplog.text
+
+
+def test_private_retry_only_processes_confirmed_failure(client, monkeypatch):
+    api, engine = client
+    assert api.post('/api/contact', json=payload()).status_code == 201
+    with Session(engine) as db:
+        message = db.scalar(select(ContactMessage))
+        message.email_delivery_status = 'FAILED'
+        message_id = message.id
+        db.commit()
+    monkeypatch.setattr(retry_email, 'SessionLocal', lambda: Session(engine))
+    calls = []
+    def deliver_once(identifier):
+        calls.append(identifier)
+        with Session(engine) as db:
+            db.get(ContactMessage, identifier).email_delivery_status = 'SENT'
+            db.commit()
+    monkeypatch.setattr(retry_email, 'notify_new_contact', deliver_once)
+    assert retry_email.retry_failed(message_id) == 'SENT'
+    assert retry_email.retry_failed(message_id) == 'not_failed'
+    assert retry_email.retry_failed(message_id + 1) == 'not_found'
+    assert calls == [message_id]

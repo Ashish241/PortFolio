@@ -100,9 +100,10 @@ the provider's current dashboard values (for example SMTP host
 the SMTP password). The contact route commits the message before attempting
 email. Delivery is recorded as `SENT`, `FAILED` or `DISABLED`; a successful
 contact response means **stored**, not necessarily emailed. Inspect failed
-delivery records privately and retry only after checking whether the provider
-actually accepted the mail, to avoid duplicate notifications. Do not expose a
-public message-list or retry endpoint.
+delivery records privately and retry a confirmed `FAILED` record with
+`python -m app.retry_email MESSAGE_ID` in an authenticated Render shell only
+after checking whether the provider actually accepted the mail, to avoid
+duplicate notifications. Do not expose a public message-list or retry endpoint.
 
 ## 4. Preview in the existing Vercel project
 
