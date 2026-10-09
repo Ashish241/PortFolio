@@ -1,4 +1,5 @@
 import pytest
+import json
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.core.config import get_settings
@@ -66,3 +67,38 @@ def test_private_retry_only_processes_confirmed_failure(client, monkeypatch):
     assert retry_email.retry_failed(message_id) == 'not_failed'
     assert retry_email.retry_failed(message_id + 1) == 'not_found'
     assert calls == [message_id]
+
+
+def test_resend_https_notification_uses_verified_plaintext_and_idempotency(client, monkeypatch):
+    api, engine = client
+    settings = get_settings()
+    for key, value in {
+        'email_provider': 'resend',
+        'email_api_key': 'test-resend-key',
+        'contact_receiver_email': 'owner@example.com',
+        'email_from_address': 'Portfolio <portfolio@example.com>',
+    }.items():
+        monkeypatch.setattr(settings, key, value)
+    requests = []
+    class Reply:
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def read(self, size): return b'{"id":"test-message-id"}'
+    def respond(request, timeout):
+        requests.append(request)
+        assert timeout == 10
+        assert request.full_url == 'https://api.resend.com/emails'
+        assert request.get_header('Authorization') == 'Bearer test-resend-key'
+        assert request.get_header('Idempotency-key') == 'portfolio-contact-1'
+        body = json.loads(request.data)
+        assert body['to'] == ['owner@example.com']
+        assert body['reply_to'] == 'recruiter@example.com'
+        assert '<script>' in body['text']
+        assert 'html' not in body
+        return Reply()
+    monkeypatch.setattr(email_service, 'urlopen', respond)
+    response = api.post('/api/contact', json=payload(message='<script>alert(1)</script> This is user supplied plaintext.'))
+    assert response.status_code == 201
+    assert len(requests) == 1
+    with Session(engine) as db:
+        assert db.scalar(select(ContactMessage)).email_delivery_status == 'SENT'

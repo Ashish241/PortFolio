@@ -3,7 +3,7 @@ const base = (import.meta.env?.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${base}/api${path}`, {
     ...options,
-    signal: AbortSignal.timeout(12000),
+    signal: AbortSignal.timeout(90000),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok)

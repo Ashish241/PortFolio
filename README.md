@@ -160,7 +160,7 @@ Contact payload:
 
 `started_at` is the actual form-open Unix timestamp in milliseconds. Submission requires 2 seconds to 24 hours elapsed. The hidden `website` honeypot must be empty. Pydantic rejects extra fields, invalid email addresses, control characters, and invalid field lengths. Nginx and the API enforce 32 KiB bodies, including streamed request bodies. Rate-limit reservations and message insertion share a database transaction; PostgreSQL uses a shared locked bucket, so multiple workers cannot independently accept five messages each.
 
-No public endpoint exposes stored messages. `notify_new_contact` supports optional configured SMTP delivery after storage; a missing provider records `DISABLED` and an email failure records `FAILED`. Live delivery is not claimed without credentials and a provider check. The form explicitly reports database receipt.
+No public endpoint exposes stored messages. `notify_new_contact` supports Resend HTTPS delivery or optional SMTP after storage; a missing provider records `DISABLED` and an email failure records `FAILED`. Live delivery is not claimed without credentials and a provider check. The form explicitly reports database receipt.
 
 ## Character and motion
 
@@ -206,11 +206,11 @@ No GLB is downloaded, so Draco/Meshopt compression is not applicable to this pro
 
 `POST /api/contact` validates and commits the inquiry before confirming receipt. Messages are private and retain workflow `status` (`NEW`, `READ`, `REPLIED`, `SPAM`) and separate `email_delivery_status` (`PENDING`, `SENT`, `FAILED`, `DISABLED`). There are no public message-read or administration endpoints. The existing honeypot, minimum submission time, field limits and database-backed rate limits remain.
 
-Optional notifications use Python's [SMTP transport](https://docs.python.org/3/library/smtplib.html). Configure server-side `EMAIL_PROVIDER=smtp`, `SMTP_HOST`, `SMTP_PORT`, `EMAIL_FROM_ADDRESS`, and `CONTACT_RECEIVER_EMAIL`; add `SMTP_USERNAME` and `SMTP_PASSWORD` (or `EMAIL_API_KEY`) for authenticated servers. Use port 587 with `SMTP_STARTTLS=true`, or 465 with `SMTP_SSL=true`. No credentials enter the browser bundle.
+For the free Render deployment, configure server-side `EMAIL_PROVIDER=resend`, `EMAIL_API_KEY`, `EMAIL_FROM_ADDRESS` and `CONTACT_RECEIVER_EMAIL`. The backend sends a plain-text HTTPS request to Resend with a per-message idempotency key. SMTP remains an optional alternative on hosts that allow it: set `EMAIL_PROVIDER=smtp`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME` and `SMTP_PASSWORD`. No credentials enter the browser bundle.
 
 Notification content is plain text with the sender name/email, subject, message and UTC submission timestamp. User input is never rendered as HTML or used in the notification subject header. Delivery runs after the database commit; failures preserve the inquiry, mark delivery `FAILED` and log a redacted error. A sent form means the backend stored the message, not that an email reached an inbox.
 
-Without email configuration, development logs exactly `Email notification disabled in development.` and delivery is `DISABLED`; storage continues. Live SMTP delivery requires owner-provided configuration and an actual provider check. `FRONTEND_URL` records the intended frontend origin; `CORS_ORIGINS` remains the explicit API origin allowlist.
+Without email configuration, development logs exactly `Email notification disabled in development.` and delivery is `DISABLED`; storage continues. Live Resend delivery requires owner-provided configuration and an actual provider check. `FRONTEND_URL` records the intended frontend origin; `CORS_ORIGINS` remains the explicit API origin allowlist.
 
 ## Production build and deployment
 
@@ -245,7 +245,7 @@ cd ..\backend
 python -m pytest -q
 ```
 
-Backend tests use isolated SQLite databases and exercise profile grounding, schema-constrained provider selection/failure, contact persistence, workflow status, plaintext SMTP transport and delivery failure preservation. Motion/DOM tests exercise physical support, safe-stop interruption, bounded scrolling/reversal, endpoint tracking, chained routes, protected UI and responsive collision bounds. These do not certify PostgreSQL locking or browser visuals.
+Backend tests use isolated SQLite databases and exercise profile grounding, schema-constrained provider selection/failure, contact persistence, workflow status, Resend HTTPS and plaintext SMTP transport, and delivery failure preservation. Motion/DOM tests exercise physical support, safe-stop interruption, bounded scrolling/reversal, endpoint tracking, chained routes, protected UI and responsive collision bounds. These do not certify PostgreSQL locking or browser visuals.
 
 To run the rendered frontend-to-FastAPI HTTP integration test, set `PORTFOLIO_TEST_PYTHON` to your Python executable (with backend and test requirements installed), then run `npm test`. The harness starts a temporary loopback API on a fresh ephemeral port and uses the real frontend components/services and actual HTTP requests. It verifies chat, stored contact success, database failure UI, and retention after mail failure. It uses an isolated SQLite database and does not send real email. Test-only diagnostic routes exist only in `backend/tests/ui_server.py`; the production application never imports that harness. Without the variable, this integration test is explicitly skipped.
 

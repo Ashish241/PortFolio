@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
         from app.services.ai_service import development_warning
         warning = development_warning()
         if warning: logger.warning(warning)
-        if not settings.email_provider or not settings.smtp_host:
+        if not settings.email_provider or (settings.email_provider == "smtp" and not settings.smtp_host):
             logger.info("Email notification disabled in development.")
     yield
 

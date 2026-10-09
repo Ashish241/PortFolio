@@ -1,9 +1,11 @@
 """Optional plaintext SMTP notifications. Storage commits before delivery."""
 import logging
+import json
 import smtplib
 import ssl
 from email.message import EmailMessage
 from datetime import timezone
+from urllib.request import Request, urlopen
 from app.core.config import get_settings
 from app.database.session import SessionLocal
 from app.models import ContactMessage
@@ -11,6 +13,33 @@ logger = logging.getLogger(__name__)
 
 def deliver(message: ContactMessage) -> str:
     s = get_settings()
+    if s.email_provider == 'resend':
+        if not s.email_api_key or not s.contact_receiver_email or not s.email_from_address:
+            logger.info('Email notification is not configured.')
+            return 'DISABLED'
+        timestamp = message.created_at.replace(tzinfo=timezone.utc) if message.created_at.tzinfo is None else message.created_at
+        body = {
+            'from': s.email_from_address,
+            'to': [s.contact_receiver_email],
+            'reply_to': message.email,
+            'subject': f'New portfolio inquiry #{message.id}',
+            'text': f'Sender name: {message.name}\nSender email: {message.email}\nSubject: {message.subject}\nSubmitted: {timestamp.isoformat()}\n\nMessage:\n{message.message}\n',
+        }
+        request = Request(
+            'https://api.resend.com/emails',
+            data=json.dumps(body).encode('utf-8'),
+            headers={
+                'Authorization': f'Bearer {s.email_api_key}',
+                'Content-Type': 'application/json',
+                'Idempotency-Key': f'portfolio-contact-{message.id}',
+            },
+            method='POST',
+        )
+        with urlopen(request, timeout=10) as response:
+            result = json.loads(response.read(10000))
+        if not isinstance(result, dict) or not result.get('id'):
+            raise ValueError('Email provider returned no message ID')
+        return 'SENT'
     if s.email_provider != 'smtp' or not s.smtp_host or not s.contact_receiver_email or not s.email_from_address or (s.smtp_username and not (s.smtp_password or s.email_api_key)):
         logger.info('Email notification disabled in development.' if s.environment == 'development' else 'Email notification is not configured.')
         return 'DISABLED'

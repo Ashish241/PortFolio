@@ -7,7 +7,7 @@ export async function askAssistant(
   const response = await fetch(`${base}/api/assistant/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    signal: AbortSignal.timeout(25000),
+    signal: AbortSignal.timeout(90000),
     body: JSON.stringify({ message, conversation_id }),
   });
   if (!response.ok) {
