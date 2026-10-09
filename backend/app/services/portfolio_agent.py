@@ -1,0 +1,182 @@
+"""A bounded career assistant. Models select facts; they never author career claims.
+
+Memory is process-local, temporary and deliberately never written to the database.
+Run one API worker for follow-up continuity, or add a TTL-only shared store before
+scaling workers. Database rate limits remain shared across workers.
+"""
+import hashlib
+import hmac
+import json
+import re
+import threading
+import time
+import uuid
+from dataclasses import dataclass, field
+from fastapi import HTTPException
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+from app.core.config import get_settings
+from app.models import CandidateProfile, Education, Contribution, Certification
+from app.services.portfolio import project_query, serialize_project, get_experience, get_skills
+from app.services.contact import reserve_rate_limit
+from app.schemas import AssistantResponse, AssistantAction, AssistantSource
+from app.services.ai_service import development_warning
+
+
+@dataclass
+class Visit:
+    owner: str
+    updated: float
+    turns: int = 0
+    topic: str = "profile"
+    history: list[dict] = field(default_factory=list)
+    busy: bool = False
+
+
+_visits: dict[str, Visit] = {}
+_lock = threading.Lock()
+SCOPE = "I’m here to help with Ashish’s career, projects, skills, experience, education and resume. Try asking about KubASIE or his backend work."
+MISSING = "The verified portfolio does not currently contain that information. You can ask Ashish directly through the contact section."
+
+
+def knowledge(db: Session):
+    p = db.get(CandidateProfile, 1)
+    if not p:
+        raise HTTPException(503, "The portfolio assistant is temporarily unavailable. Please explore the projects, experience and resume directly.")
+    facts = {"profile": (p.summary, "Verified resume · profile"),
+             "links": (f"GitHub: {p.github_url}. LinkedIn: {p.linkedin_url}.", "Verified resume · links"),
+             "contact": (f"You can contact Ashish at {p.email}. Location: {p.location}.", "Verified resume · contact"),
+             "resume": ("The latest verified resume is available through Download Resume.", "Latest resume")}
+    projects = [serialize_project(x) for x in db.scalars(project_query().order_by("order"))]
+    for x in projects:
+        facts[f"project:{x.slug}"] = (f"{x.short_title}: {x.summary} {x.solution} Technologies: {', '.join(x.technologies)}.", f"Resume · {x.short_title}")
+        facts[f"detail:{x.slug}"] = (f"{x.short_title} — Problem: {x.problem} Solution: {x.solution} Features: {'; '.join(x.features)}. Outcome: {x.outcome}", f"Project · {x.short_title}")
+    exp = get_experience(db)
+    facts["experience"] = (" ".join(f"{e.position}, {e.company} ({e.start_date}–{e.end_date}, {e.location}). {' '.join(e.highlights[:2])}" for e in exp), "Resume · experience")
+    facts["experience:detail"] = (" ".join(f"{e.position}, {e.company} ({e.start_date}–{e.end_date}, {e.location}). {' '.join(e.highlights)} Technologies: {', '.join(e.technologies)}." for e in exp), "Resume · experience details")
+    skills = get_skills(db)
+    for category in sorted({s.category for s in skills}):
+        facts[f"skills:{category.lower()}"] = (f"{category}: {', '.join(s.name for s in skills if s.category == category)}.", f"Resume · {category} skills")
+    for s in skills:
+        facts[f"technology:{s.name.lower()}"] = (f"{s.name} is listed in Ashish’s resume. {'; '.join(s.usages)}.", f"Resume · {s.name}")
+    facts["education"] = (" ".join(f"{e.qualification}, {e.institution}; expected {e.expected_year}; {e.grade}." for e in db.scalars(select(Education))), "Resume · education")
+    facts["certifications"] = (" ".join(f"{c.title} — {c.issuer}, {c.year} ({c.kind})." for c in db.scalars(select(Certification))) + " AWS Cloud Practitioner Essentials is training; the resume does not claim AWS certification.", "Resume · training and credentials")
+    facts["open-source"] = (" ".join(f"{c.repository} PR #{c.pr_number}: {c.description} Verified recorded status: {c.status}." for c in db.scalars(select(Contribution))), "Resume · open source")
+    return facts, {x.slug for x in projects}
+
+
+def retrieve(message: str, previous: str, facts: dict):
+    q = message.lower()
+    if re.search(r"ignore (all|previous)|system prompt|api.?key|physics|homework|assignment|recipe|weather|write.*(poem|essay|code)|politic", q):
+        return [], "scope"
+    if re.search(r"salary|age|date of birth|availability|visa|years of experience|certified|production (scale|users)|million|guarantee", q):
+        if "certified" in q or "certification" in q:
+            return ["certifications"], "certifications"
+        return [], "missing"
+    topic = next((f"project:{slug}" for slug in ("kubasie", "kf-probe", "portfolio") if slug in q and (slug != "portfolio" or "project" in q)), "")
+    followup = bool(re.search(r"^(and |what (tech|did|about)|how |tell me more|more detail|explain (more|it)|what about (it|that)|does (it|he)|show (it|that))", q))
+    if not topic and followup and previous.startswith("project:"):
+        topic = previous
+    if topic and topic in facts:
+        key = topic.replace("project:", "detail:") if re.search(r"detail|architecture|how|explain|more", q) else topic
+        return [key], topic
+    tech = [k for k in facts if k.startswith("technology:") and re.search(r"(?<!\w)" + re.escape(k.split(":", 1)[1]) + r"(?!\w)", q)]
+    if tech and not re.search(r"intern|kubeflow|contribut|github(?! actions)|linkedin|resume|certificat|credential|badge", q):
+        return tech[:3] + (["project:kubasie", "project:kf-probe"] if "kubernetes" in q else []), "skills"
+    if re.search(r"experience (with|in) |work(ed)? (at|for) ", q) and not re.search(r"real it|backend|devops|cloud|full.?stack", q): return [], "missing"
+    for key, pattern in [("experience", r"intern|experience|deployment|endpoints"), ("open-source", r"open.?source|kubeflow|findmygsoc|contribut|pull request"), ("education", r"education|university|degree|cgpa|graduate"), ("certifications", r"certificat|credential|training|badge"), ("resume", r"resume|download|cv\b"), ("links", r"github|linkedin"), ("contact", r"contact|email|location|ranchi")]:
+        if re.search(pattern, q):
+            return ["experience:detail" if key == "experience" and re.search(r"detail|more|explain", q) else key], key
+    if re.search(r"does .*know |experience (with|in) |work(ed)? (at|for) |skill (in|with) |can he (use|build|write)", q):
+        return [], "missing"
+    if re.search(r"devops|ci/cd|cloud|backend|full.?stack|hire|suitable|strongest|projects|built", q):
+        ids = []
+        if re.search(r"backend|hire|suitable|devops|ci/cd", q): ids.append("experience")
+        cats = ["devops", "cloud"] if re.search(r"devops|cloud|ci/cd", q) else ["backend"]
+        ids += [f"skills:{c}" for c in cats if f"skills:{c}" in facts]
+        ids += ["project:kubasie", "project:kf-probe"]
+        if "full" in q: ids.append("project:portfolio")
+        return ids[:4], "skills"
+    if re.search(r"technolog|skills|know|stack", q):
+        return [k for k in facts if k.startswith("skills:")], "skills"
+    if re.search(r"ashish|about (him|you)|who|hello|hi\b|profile", q): return ["profile", "experience"], "profile"
+    return [], "missing" if re.search(r"(he|his|ashish)\b", q) else "scope"
+
+
+def model_select(message: str, visit: Visit, facts: dict, candidates: list[str]):
+    from app.services.ai_service import configured_provider
+    try:
+        provider = configured_provider()
+        if provider is None: return candidates, "grounded"
+        selected = provider.generate_response({k: facts[k][0] for k in candidates}, message, visit.history)
+        return selected, get_settings().ai_provider.lower()
+    except Exception:
+        raise HTTPException(502, "The AI provider could not answer. Please try again shortly or explore the portfolio directly.")
+
+
+def actions(ids: list[str], slugs: set[str]):
+    result = []
+    def add(kind, target, label):
+        action = AssistantAction(type=kind, target=target, label=label)
+        if action not in result: result.append(action)
+    for key in ids:
+        if key.startswith(("project:", "detail:")) and key.split(":", 1)[1] in slugs:
+            slug = key.split(":", 1)[1]
+            add("OPEN_PROJECT", slug, f"Explore {slug}")
+        elif key == "links": add("OPEN_GITHUB", "github", "Open GitHub")
+        elif key == "resume": add("DOWNLOAD_RESUME", "resume", "Download Resume")
+        elif key == "contact": add("NAVIGATE_SECTION", "contact", "Contact Ashish")
+        elif key in ("experience", "experience:detail", "open-source") or key.startswith(("skills:", "technology:")):
+            target = "experience" if key.startswith("experience") else key if key == "open-source" else "skills"
+            add("NAVIGATE_SECTION", target, f"View {target.replace('-', ' ')}")
+    return result[:4]
+
+
+def owner_hash(ip: str):
+    return hmac.new(get_settings().ip_hash_secret.encode(), ("assistant:" + ip).encode(), hashlib.sha256).hexdigest()
+
+
+def chat(db: Session, message: str, conversation_id: str | None, ip: str):
+    s = get_settings()
+    if s.assistant_mode != "grounded" and (not s.provider_api_key or not s.ai_model):
+        raise HTTPException(503, f"Ask Spidey is not configured yet. The site owner must set {s.provider_key_name} on the backend.")
+    owner, now = owner_hash(ip), time.monotonic()
+    reserve_rate_limit(db, owner, s.assistant_rate_limit, s.assistant_window_seconds)
+    db.commit()  # Reserve before any network cost, including provider errors.
+    with _lock:
+        for key in list(_visits):
+            if now - _visits[key].updated > s.assistant_session_ttl_seconds and not _visits[key].busy: del _visits[key]
+        visit = _visits.get(conversation_id or "")
+        if visit and visit.owner != owner: raise HTTPException(404, "Conversation unavailable")
+        if not visit:
+            if len(_visits) >= s.assistant_max_sessions: raise HTTPException(429, "The assistant is busy. Please try again shortly.")
+            conversation_id = str(uuid.uuid4())
+            visit = _visits[conversation_id] = Visit(owner, now)
+        if visit.busy: raise HTTPException(409, "Please wait for the current answer.")
+        if visit.turns >= s.assistant_session_limit: raise HTTPException(429, "This conversation has reached its limit. Please explore the portfolio directly.")
+        visit.busy, visit.updated = True, now
+        visit.turns += 1
+    try:
+        facts, slugs = knowledge(db)
+        ids, topic = retrieve(message, visit.topic, facts)
+        mode = "grounded"
+        if ids: ids, mode = model_select(message, visit, facts, ids)
+        answer = "\n\n".join(facts[k][0] for k in ids) if ids else (SCOPE if topic == "scope" else MISSING)
+        if re.search(r"hire|suitable|strongest", message.lower()) and ids:
+            answer = "These verified examples support a conversation about his fit for the role:\n\n" + answer
+        result = AssistantResponse(conversation_id=conversation_id, answer=answer, suggested_actions=actions(ids, slugs) if ids else [AssistantAction(type="NAVIGATE_SECTION", target="contact", label="Contact Ashish")], sources=[AssistantSource(id=k, label=facts[k][1]) for k in ids], mode=mode, warning=development_warning() if mode == "grounded" else ("Spidey is having trouble accessing the portfolio assistant right now. You can still explore the projects, experience, skills, and resume directly. Showing verified portfolio retrieval." if mode == "grounded-fallback" else None))
+        with _lock:
+            visit.topic = topic if topic not in ("scope", "missing") else visit.topic
+            visit.history = (visit.history + [{"question": message, "fact_ids": ids}])[-6:]
+        return result
+    finally:
+        with _lock: visit.busy, visit.updated = False, time.monotonic()
+
+
+def clear(conversation_id: str, ip: str):
+    with _lock:
+        visit = _visits.get(conversation_id)
+        if visit and visit.owner != owner_hash(ip): raise HTTPException(404, "Conversation unavailable")
+        if visit and visit.busy: raise HTTPException(409, "Please wait for the current answer.")
+        _visits.pop(conversation_id, None)
+    return {"cleared": True}

@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: ashish-spidey-api
+    runtime: docker
+    repo: https://github.com/Ashish241/PortFolio
+    branch: new-spiderman-portfolio
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/ready
+    autoDeploy: false
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: CORS_ORIGINS
+        value: https://port-folio-delta-wine.vercel.app
+      - key: FRONTEND_URL
+        value: https://port-folio-delta-wine.vercel.app
+      - key: AI_PROVIDER
+        value: groq
+      - key: AI_MODEL
+        value: llama-3.1-8b-instant
+      - key: ASSISTANT_MODE
+        value: auto
+      - key: DATABASE_URL
+        sync: false
+      - key: AI_API_KEY
+        sync: false
+      - key: IP_HASH_SECRET
+        generateValue: true
+      - key: CONTACT_RECEIVER_EMAIL
+        sync: false
+      - key: EMAIL_PROVIDER
+        value: smtp
+      - key: EMAIL_FROM_ADDRESS
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: '465'
+      - key: SMTP_SSL
+        value: 'true'
+      - key: SMTP_STARTTLS
+        value: 'false'
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false

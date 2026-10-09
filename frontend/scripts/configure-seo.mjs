@@ -1,0 +1,12 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+const site = (process.env.SITE_URL || 'https://port-folio-delta-wine.vercel.app').replace(/\/$/, '');
+const url = new URL(site);
+if(!['http:','https:'].includes(url.protocol)||url.pathname!=='/'||url.search||url.hash)throw new Error('SITE_URL must be an http(s) origin without a path, query, or fragment');
+const escape=value=>value.replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;');
+let html=readFileSync('index.html','utf8');
+html=html.replace(/\n  <!-- deployment metadata -->[\s\S]*?<!-- end deployment metadata -->/,'');
+html=html.replace(/(<meta property="og:image" content=")[^"]*("\s*\/?>)/,`$1${escape(site)}/assets/portrait.webp$2`);
+html=html.replace('</head>',`  <!-- deployment metadata -->\n  <link rel="canonical" href="${escape(site)}/" />\n  <meta property="og:url" content="${escape(site)}/" />\n  <meta name="twitter:title" content="Ashish Kumar Ishwar | Interface to Infrastructure" />\n  <meta name="twitter:description" content="Full-stack, backend, and cloud-native engineering." />\n  <meta name="twitter:image" content="${escape(site)}/assets/portrait.webp" />\n  <!-- end deployment metadata -->\n</head>`);
+writeFileSync('index.html',html);
+writeFileSync('public/robots.txt',`User-agent: *\nAllow: /\nSitemap: ${site}/sitemap.xml\n`);
+writeFileSync('public/sitemap.xml',`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${escape(site)}/</loc></url></urlset>\n`);
