@@ -108,10 +108,13 @@ public message-list or retry endpoint.
 
 In the Vercel dashboard, open the **existing** project attached to
 `port-folio-delta-wine.vercel.app` (GitHub deployment records name its
-environment `Production – port-folio`). Confirm its project ID, linked repo,
-production branch `main`, root directory, and domain; record these in the
-release checklist. This workspace has no Vercel account token, so these
-settings cannot be read or changed here.
+environment `Production – port-folio`). Vercel's PR status identifies project
+ID `prj_yrZAm9Iz7yvryYKyzXhnCNSgldWn` and a repository-root directory.
+Confirm its linked repo, production branch `main`, build settings, environment
+variables and domain in the Vercel dashboard before release. This workspace
+has no Vercel account token, so protected settings cannot be read or changed
+here. A **separate** `my_portfolio` project also builds this repo; do not use
+that project for this release.
 
 Keep Vercel's Root Directory at the **repository root**. The root
 `vercel.json` installs and builds in `frontend/` and serves `frontend/dist`.
@@ -126,8 +129,11 @@ overriding its built-in default. Redeploy previews after changing Vite
 environment variables because they are baked into the bundle at build time.
 Leave `AI_API_KEY`, `DATABASE_URL` and SMTP secrets exclusively on Render.
 
-Open the preview deployment generated for `new-spiderman-portfolio`. Confirm
-its URL in Vercel or the GitHub deployment status. Add that exact origin to
+The existing `port-folio` project reported a Ready preview at
+`https://port-folio-git-new-spiderman-portfolio-ashish241s-projects.vercel.app/`.
+It currently presents Vercel Login to unauthenticated requests, so an
+authenticated owner must inspect the actual page and assets. Add that exact
+origin to
 Render `CORS_ORIGINS` and redeploy the API. Do not promote this preview to the
 production domain yet.
 

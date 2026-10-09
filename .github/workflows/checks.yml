@@ -44,3 +44,8 @@ jobs:
       - run: python -m app.seed
         env:
           DATABASE_URL: sqlite:///./ci.db
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f backend/Dockerfile -t ashish-portfolio-api:check .
