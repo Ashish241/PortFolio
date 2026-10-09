@@ -12,7 +12,7 @@ services:
       - key: ENVIRONMENT
         value: production
       - key: CORS_ORIGINS
-        value: https://port-folio-delta-wine.vercel.app
+        value: https://port-folio-delta-wine.vercel.app,https://port-folio-git-new-spiderman-portfolio-ashish241s-projects.vercel.app
       - key: FRONTEND_URL
         value: https://port-folio-delta-wine.vercel.app
       - key: AI_PROVIDER
