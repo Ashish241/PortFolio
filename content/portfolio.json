@@ -535,6 +535,18 @@
   },
   "education": [
     {
+      "qualification": "10th Grade",
+      "institution": "Saraswati Shishu Vidya Mandir",
+      "expected_year": 2021,
+      "grade": "77%"
+    },
+    {
+      "qualification": "12th Grade",
+      "institution": "Gossner College, Ranchi",
+      "expected_year": 2023,
+      "grade": "66%"
+    },
+    {
       "qualification": "B.Tech in Computer Science Engineering",
       "institution": "Amity University Jharkhand",
       "expected_year": 2027,

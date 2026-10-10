@@ -477,7 +477,7 @@ export class CompanionEngine {
       this.state = "INTRO_WAVING";
       if (this.introElapsed === 0) this.landedAt = this.idleTime;
       this.introElapsed += dt;
-      if (this.introElapsed < (i.reduced ? 2 : 3.2)) return;
+      if (this.introElapsed < 5) return;
       this.lastWave = this.idleTime;
       this.introDone = true;
     }

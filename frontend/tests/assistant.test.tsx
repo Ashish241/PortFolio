@@ -136,3 +136,42 @@ test("outside pointer closes chat while panel and shared triggers stay open", ()
   fireEvent.pointerDown(document.body);
   assert.equal(closed, 1, "listener removed after unmount");
 });
+
+test("clear invalidates a pending answer and allows a fresh question", async () => {
+  const oldFetch = globalThis.fetch;
+  let finish!: (value: Response) => void;
+  let calls = 0;
+  globalThis.fetch = async (url) => {
+    if (String(url).endsWith("/clear")) return new Response('{"cleared":true}');
+    calls++;
+    if (calls === 1) return new Promise<Response>((resolve) => { finish = resolve; });
+    return new Response(JSON.stringify({ conversation_id: "00000000-0000-4000-a000-000000000002", answer: "Fresh answer", suggested_actions: [], sources: [], mode: "grounded" }));
+  };
+  const view = render(<AssistantPanel open onClose={() => {}} onAction={() => {}} />);
+  try {
+    fireEvent.click(view.getByText("Backend experience?"));
+    await waitFor(() => assert.equal(calls, 1));
+    fireEvent.click(view.getByText("Clear"));
+    assert.ok(view.getByText("Backend experience?"));
+    finish(new Response(JSON.stringify({ conversation_id: "00000000-0000-4000-a000-000000000001", answer: "Stale answer", suggested_actions: [], sources: [], mode: "grounded" })));
+    fireEvent.click(view.getByText("Backend experience?"));
+    await waitFor(() => assert.ok(view.getByText("Fresh answer")));
+    assert.equal(view.queryByText("Stale answer"), null);
+  } finally { cleanup(); globalThis.fetch = oldFetch; }
+});
+
+test("education reply renders only the typed timeline component", async () => {
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ conversation_id: "00000000-0000-4000-a000-000000000001", answer: "Here is Ashish's educational journey.", suggested_actions: [], sources: [], mode: "grounded", ui_component: "education_timeline", data: [
+    { level: "10th Grade", institution: "Saraswati Shishu Vidya Mandir", year: "2021", score: "77%" },
+    { level: "12th Grade", institution: "Gossner College, Ranchi", year: "2023", score: "66%" },
+    { level: "B.Tech (CSE)", institution: "Amity University Jharkhand", year: "Expected 2027", score: "7.66 CGPA" },
+  ] }));
+  const view = render(<AssistantPanel open onClose={() => {}} onAction={() => {}} />);
+  try {
+    fireEvent.click(view.getByText("Tell me about Ashish"));
+    await waitFor(() => assert.ok(view.getByLabelText("Ashish's education timeline")));
+    assert.equal(view.getByLabelText("Ashish's education timeline").querySelectorAll("li").length, 3);
+    assert.ok(view.getByText("Expected 2027"));
+  } finally { cleanup(); globalThis.fetch = oldFetch; }
+});

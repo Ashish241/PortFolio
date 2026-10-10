@@ -27,11 +27,49 @@ def test_verified_resume_and_temporary_followup(client):
     assert "3+" in internship and "10+" in internship
     assert "2026-06" in internship and "2026-08" in internship
     assert api.get("/api/profile").json()["name"] == "Ashish Kumar Ishwar"
-    assert api.get("/api/education").json()[0]["expected_year"] == 2027
+    assert [e["expected_year"] for e in api.get("/api/education").json()] == [2021, 2023, 2027]
     with Session(engine) as db: assert not db.scalars(select(ContactMessage)).all()
     cleared = api.post("/api/assistant/clear", json={"message": "clear", "conversation_id": first["conversation_id"]})
     assert cleared.json()["cleared"]
     assert first["conversation_id"] not in agent._visits
+
+
+def test_education_timeline_and_direct_cgpa(client):
+    api, _ = client
+    timeline = ask(api, "Where did Ashish study?").json()
+    assert timeline["ui_component"] == "education_timeline"
+    assert [(item["institution"], item["year"], item["score"]) for item in timeline["data"]] == [
+        ("Saraswati Shishu Vidya Mandir", "2021", "77%"),
+        ("Gossner College, Ranchi", "2023", "66%"),
+        ("Amity University Jharkhand", "Expected 2027", "7.66 CGPA"),
+    ]
+    direct = ask(api, "What is Ashish's CGPA?", timeline["conversation_id"]).json()
+    assert "7.66" in direct["answer"]
+    assert direct["ui_component"] is None and direct["data"] is None
+
+
+def test_ten_sequential_questions_and_pronoun_followups(client):
+    api, _ = client
+    questions = ["Tell me about KubASIE", "What technologies did he use?", "How does that project work?", "Does he know Docker?", "What about Python?", "Does he know Kubernetes?", "Tell me about his education", "What is his CGPA?", "What is his GitHub?", "Tell me about his internship"]
+    conversation = None
+    for question in questions:
+        result = ask(api, question, conversation)
+        assert result.status_code == 200, question
+        response = result.json()
+        assert response["answer"] and response["conversation_id"]
+        if conversation: assert response["conversation_id"] == conversation
+        conversation = response["conversation_id"]
+
+
+def test_technology_definition_only_when_requested(client):
+    api, _ = client
+    general = ask(api, "What is Docker?").json()["answer"]
+    assert general.startswith("Docker packages applications")
+    assert "KubASIE" in general
+    personal = ask(api, "Does Ashish know Docker?").json()["answer"]
+    assert "Docker is listed" in personal
+    assert not personal.startswith("Docker packages")
+    assert "listed in Ashish" in ask(api, "Does Ashish know Git?").json()["answer"]
 
 
 def test_no_unsupported_claims_and_scope_guard(client):

@@ -531,34 +531,67 @@
   color: #fff;
   font-size: 12px;
   box-shadow: 0 12px 40px #0008;
-  pointer-events: auto;
+  pointer-events: none;
   transition: transform 0.12s linear;
-  animation: spidey-bubble-enter 0.2s ease-out;
+  animation: spidey-bubble-life 5s ease-in-out both;
 }
-.spidey-intro button {
+.spidey-intro span {
   display: block;
-  margin-top: 8px;
-  background: none;
-  border: 0;
-  color: #ff8593;
-  cursor: pointer;
+  overflow: hidden;
+  animation: spidey-type 1.55s steps(43, end) both;
 }
 
 .spider-stage {
   z-index: 64;
 }
 
-@keyframes spidey-bubble-enter {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+@keyframes spidey-bubble-life {
+  0% { opacity: 0; }
+  5%, 88% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes spidey-type {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .spidey-intro {
+  .spidey-intro, .spidey-intro span {
     transition: none;
     animation: none;
   }
 }
+
+.education-timeline {
+  list-style: none;
+  margin: 16px 0 4px;
+  padding: 0 0 0 24px;
+  border-left: 1px solid #45658b;
+}
+.education-timeline li {
+  position: relative;
+  margin: 0 0 17px;
+  padding: 11px 12px;
+  border: 1px solid #354968;
+  border-radius: 11px;
+  background: linear-gradient(125deg, #1b2b45, #131d30);
+  animation: timeline-enter .35s ease-out both;
+}
+.education-timeline li:nth-child(2) { animation-delay: .09s; }
+.education-timeline li:nth-child(3) { animation-delay: .18s; margin-bottom: 0; }
+.education-timeline li::before {
+  content: "";
+  position: absolute;
+  left: -30px;
+  top: 17px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid #ff677b;
+  border-radius: 50%;
+  background: #101827;
+}
+.education-timeline strong { color: #fff; font-size: 12px; }
+.education-timeline span { float: right; color: #8dbbfa; font-size: 11px; }
+.education-timeline p { margin: 6px 0 3px; color: #c7d5e8; font-size: 11px; }
+.education-timeline em { color: #ff9ead; font-size: 11px; font-style: normal; }
+@keyframes timeline-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .education-timeline li { animation: none; } }

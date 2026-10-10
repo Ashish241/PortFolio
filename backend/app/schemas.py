@@ -105,6 +105,13 @@ class AssistantSource(BaseModel):
     label: str
 
 
+class EducationMilestone(BaseModel):
+    level: str
+    institution: str
+    year: str
+    score: str
+
+
 class AssistantResponse(BaseModel):
     conversation_id: str
     answer: str
@@ -112,3 +119,5 @@ class AssistantResponse(BaseModel):
     sources: list[AssistantSource]
     mode: Literal["grounded", "groq", "openai", "grounded-fallback"]
     warning: str | None = None
+    ui_component: Literal["education_timeline"] | None = None
+    data: list[EducationMilestone] | None = None

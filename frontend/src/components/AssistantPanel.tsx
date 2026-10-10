@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ArrowUpRight, X } from "./icons";
 import { askAssistant, clearAssistant } from "../services/assistant";
 import { companionEvents } from "../companion/events";
@@ -20,6 +20,15 @@ const starters = [
   "Download Resume",
   "GitHub",
 ];
+function SpideyMark() {
+  return (
+    <svg viewBox="0 0 48 48" width="32" height="32" fill="none" aria-hidden="true">
+      <path d="M24 4C13 4 7 12 7 23c0 11 8 20 17 20s17-9 17-20C41 12 35 4 24 4Z" fill="#c93246" stroke="#101827" strokeWidth="2" />
+      <path d="M24 5v37M10 15l14 12 14-12M8 25l16 7 16-7M14 8l10 12L34 8M11 34l13 1 13-1" stroke="#182033" strokeWidth="1.4" />
+      <path d="M9 21c7 0 11 3 15 8-4 5-11 7-14 2-2-3-2-7-1-10Zm30 0c-7 0-11 3-15 8 4 5 11 7 14 2 2-3 2-7 1-10Z" fill="#f7f8fb" stroke="#111827" strokeWidth="2" />
+    </svg>
+  );
+}
 export function AssistantPanel({
   open,
   onClose,
@@ -39,6 +48,9 @@ export function AssistantPanel({
     input = useRef<HTMLTextAreaElement>(null),
     log = useRef<HTMLDivElement>(null);
   const serial = useRef(0),
+    generation = useRef(0),
+    controller = useRef<AbortController | null>(null),
+    latestAnswer = useRef<HTMLElement | null>(null),
     active = useRef(false),
     requestBusy = useRef(false),
     returnFocus = useRef<HTMLElement | null>(null);
@@ -74,20 +86,29 @@ export function AssistantPanel({
         old.focus({ preventScroll: true });
     };
   }, [open, onClose]);
-  useEffect(() => {
-    if (log.current) log.current.scrollTop = log.current.scrollHeight;
+  useLayoutEffect(() => {
+    const viewport = log.current;
+    const answer = latestAnswer.current;
+    if (viewport && answer) {
+      viewport.scrollTop = Math.max(0, answer.offsetTop - viewport.offsetTop - 12);
+      latestAnswer.current = null;
+    }
     window.dispatchEvent(new Event("companion-layout"));
-  }, [turns, busy, open]);
+  }, [turns, open]);
   const send = async (question: string) => {
     const q = question.trim();
     if (requestBusy.current || q.length < 2 || q.length > 1000) return;
     requestBusy.current = true;
+    const currentGeneration = generation.current;
+    const abort = new AbortController();
+    controller.current = abort;
     setBusy(true);
     setMessage("");
     setTurns((t) => [...t, { id: ++serial.current, role: "user", text: q }]);
     companionEvents.emit({ type: "AI_REQUEST_START" });
     try {
-      const reply = await askAssistant(q, conversation.current);
+      const reply = await askAssistant(q, conversation.current, abort.signal);
+      if (currentGeneration !== generation.current) return;
       conversation.current = reply.conversation_id;
       setMode(
         reply.mode === "groq"
@@ -103,6 +124,7 @@ export function AssistantPanel({
         { id: ++serial.current, role: "assistant", text: reply.answer, reply },
       ]);
     } catch (error) {
+      if (currentGeneration !== generation.current) return;
       const text =
         error instanceof Error &&
         !["TimeoutError", "TypeError"].includes(error.name)
@@ -113,6 +135,8 @@ export function AssistantPanel({
         { id: ++serial.current, role: "assistant", text, error: true },
       ]);
     } finally {
+      if (currentGeneration !== generation.current) return;
+      controller.current = null;
       requestBusy.current = false;
       setBusy(false);
       if (active.current) {
@@ -121,30 +145,21 @@ export function AssistantPanel({
       }
     }
   };
-  const clear = async () => {
-    if (requestBusy.current) return;
-    requestBusy.current = true;
-    setBusy(true);
-    try {
-      await clearAssistant(conversation.current);
-      conversation.current = null;
-      setTurns([]);
-      setMessage("");
-    } catch (error) {
-      setTurns((t) => [
-        ...t,
-        {
-          id: ++serial.current,
-          role: "assistant",
-          text: (error as Error).message,
-          error: true,
-        },
-      ]);
-    } finally {
-      requestBusy.current = false;
-      setBusy(false);
-      input.current?.focus();
-    }
+  const clear = () => {
+    const oldConversation = conversation.current;
+    generation.current += 1;
+    controller.current?.abort();
+    controller.current = null;
+    conversation.current = null;
+    requestBusy.current = false;
+    setBusy(false);
+    setMode("Verified portfolio knowledge");
+    setTurns([]);
+    setMessage("");
+    if (log.current) log.current.scrollTop = 0;
+    companionEvents.emit({ type: "AI_REQUEST_END" });
+    void clearAssistant(oldConversation).catch(() => {});
+    input.current?.focus({ preventScroll: true });
   };
   if (!open) return null;
   return (
@@ -159,7 +174,7 @@ export function AssistantPanel({
     >
       <div className="assistant-header">
         <span className="assistant-emblem" aria-hidden="true">
-          ✧
+          <SpideyMark />
         </span>
         <div>
           <span className="eyebrow">YOUR GUIDE TO THE ENGINEER</span>
@@ -178,7 +193,7 @@ export function AssistantPanel({
       <div className="assistant-status">
         <span className="status-dot" />
         <span>{mode}</span>
-        <button onClick={clear} disabled={busy || !turns.length}>
+        <button onClick={clear} disabled={!turns.length}>
           Clear
         </button>
       </div>
@@ -193,7 +208,7 @@ export function AssistantPanel({
         {!turns.length && (
           <div className="assistant-welcome">
             <span className="assistant-orbit" aria-hidden="true">
-              ✧
+              <SpideyMark />
             </span>
             <h3>
               A little Spidey sense.
@@ -217,12 +232,23 @@ export function AssistantPanel({
         {turns.map((t) => (
           <article
             key={t.id}
+            ref={t.role === "assistant" && t.id === turns.at(-1)?.id ? (node) => { latestAnswer.current = node; } : undefined}
             className={`chat-turn ${t.role} ${t.error ? "chat-error" : ""}`}
           >
             <span className="chat-speaker">
               {t.role === "user" ? "YOU" : "SPIDEY"}
             </span>
             <p>{t.text}</p>
+            {t.reply?.ui_component === "education_timeline" && t.reply.data?.length === 3 && (
+              <ol className="education-timeline" aria-label="Ashish's education timeline">
+                {t.reply.data.map((entry) => (
+                  <li key={`${entry.level}:${entry.year}`}>
+                    <strong>{entry.level}</strong><span>{entry.year}</span>
+                    <p>{entry.institution}</p><em>{entry.score}</em>
+                  </li>
+                ))}
+              </ol>
+            )}
             {t.reply?.sources.length ? (
               <div className="chat-sources" aria-label="Answer sources">
                 {t.reply.sources.slice(0, 4).map((s) => (

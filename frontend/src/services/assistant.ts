@@ -3,11 +3,12 @@ const base = (import.meta.env?.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 export async function askAssistant(
   message: string,
   conversation_id: string | null,
+  signal?: AbortSignal,
 ): Promise<AssistantReply> {
   const response = await fetch(`${base}/api/assistant/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    signal: AbortSignal.timeout(90000),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(90000)]) : AbortSignal.timeout(90000),
     body: JSON.stringify({ message, conversation_id }),
   });
   if (!response.ok) {

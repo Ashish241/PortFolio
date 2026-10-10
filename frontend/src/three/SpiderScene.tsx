@@ -39,15 +39,7 @@ export default function SpiderScene({ onOpen }: { onOpen: () => void }) {
       </div>
       {intro && (
         <aside ref={bubble} className="spidey-intro" role="status">
-          Hey! I'm Spidey 👋 Your AI guide. Click me!
-          <button
-            onClick={() => {
-              sessionStorage.setItem("spidey-intro", "true");
-              setIntro(false);
-            }}
-          >
-            Got it · Skip intro
-          </button>
+            <span>Hey! I'm Spidey Your AI guide. Click me!</span>
         </aside>
       )}
       <button

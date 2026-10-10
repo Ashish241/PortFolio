@@ -10,4 +10,6 @@ export interface AssistantReply {
   suggested_actions: AssistantAction[];
   sources: { id: string; label: string }[];
   mode: "grounded" | "groq" | "openai" | "grounded-fallback";
+  ui_component?: "education_timeline" | null;
+  data?: { level: string; institution: string; year: string; score: string }[] | null;
 }

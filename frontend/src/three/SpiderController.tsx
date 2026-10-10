@@ -65,6 +65,7 @@ export function SpiderController({
     const intro =
       e.state === "INTRO_WAVING" && !sessionStorage.getItem("spidey-intro");
     if (intro !== introWasVisible.current) {
+      if (introWasVisible.current && !intro) sessionStorage.setItem("spidey-intro", "true");
       onIntro(intro);
       introWasVisible.current = intro;
     }
