@@ -1,0 +1,16 @@
+**/node_modules
+**/dist
+**/__pycache__
+**/.pytest_cache
+.env
+backend/.env
+backend/.env.*
+**/.env
+**/.env.*
+**/*.db
+**/*.sqlite3
+**/.venv
+**/*.log
+.git
+references
+verification

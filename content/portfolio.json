@@ -1,0 +1,544 @@
+{
+  "projects": [
+    {
+      "slug": "kubasie",
+      "title": "Kubernetes Auto-Scaling Intelligence Engine",
+      "short_title": "KubASIE",
+      "date": "February 2026",
+      "category": "CLOUD-NATIVE / MACHINE LEARNING",
+      "featured": true,
+      "summary": "Forecast the workload. Scale before the spike. A predictive autoscaling engine for Kubernetes.",
+      "problem": "Reactive scaling responds after demand changes. KubASIE explores forecasting workload demand ahead of time to inform autoscaling decisions.",
+      "solution": "PyTorch LSTM and Prophet forecast workload demand up to 60 minutes ahead. A FastAPI policy service translates those predictions into Horizontal Pod Autoscaler decisions. A React/Vite dashboard provides observability; Docker and Helm package and deploy the system.",
+      "outcome": "Built a containerized predictive autoscaling engine with a policy service, observability dashboard, and Helm-based Kubernetes deployment. The resume does not report production throughput or cost savings.",
+      "github_url": "https://github.com/Ashish241/KubASIE",
+      "live_url": null,
+      "technologies": [
+        "Python",
+        "FastAPI",
+        "React",
+        "Vite",
+        "PyTorch",
+        "Prophet",
+        "Kubernetes",
+        "HPA",
+        "Docker",
+        "Helm"
+      ],
+      "features": [
+        "Workload forecasting up to 60 minutes ahead",
+        "PyTorch LSTM and Prophet forecasting",
+        "Forecast-to-HPA policy decisions",
+        "React/Vite observability dashboard",
+        "Docker packaging and Helm deployment"
+      ],
+      "nodes": [
+        {
+          "key": "forecast",
+          "label": "Forecasting",
+          "description": "PyTorch LSTM and Prophet forecast workload demand up to 60 minutes ahead.",
+          "position": 0
+        },
+        {
+          "key": "policy",
+          "label": "Policy service",
+          "description": "FastAPI translates workload predictions into autoscaling decisions.",
+          "position": 1
+        },
+        {
+          "key": "hpa",
+          "label": "Kubernetes HPA",
+          "description": "Horizontal Pod Autoscaler decisions connect forecasts to Kubernetes scaling.",
+          "position": 2
+        },
+        {
+          "key": "dashboard",
+          "label": "Observability",
+          "description": "React/Vite dashboard provides visibility into the system.",
+          "position": 3
+        }
+      ],
+      "edges": [
+        {
+          "source": "forecast",
+          "target": "policy",
+          "label": "Predictions"
+        },
+        {
+          "source": "policy",
+          "target": "hpa",
+          "label": "Scaling decisions"
+        },
+        {
+          "source": "policy",
+          "target": "dashboard",
+          "label": "Conceptual observability connection"
+        }
+      ]
+    },
+    {
+      "slug": "kf-probe",
+      "title": "Kubernetes Workflow Health Probe",
+      "short_title": "kf-probe",
+      "date": "March 2025",
+      "category": "DEVELOPER TOOLING / KUBERNETES",
+      "featured": false,
+      "summary": "A concurrent CLI that makes Kubernetes and Argo workflow health inspectable and scriptable.",
+      "problem": "Workflow diagnosis requires visibility into DAG execution states and runtime status. A scriptable probe makes this information usable from the command line.",
+      "solution": "Built a concurrent monitoring CLI with watch mode, Kubernetes label filtering, JSON/YAML output, and Docker deployment support.",
+      "outcome": "Delivered scriptable workflow health monitoring for Kubernetes and Argo Workflows.",
+      "github_url": "https://github.com/Ashish241/kf-probe",
+      "live_url": null,
+      "technologies": [
+        "Kubernetes",
+        "Argo Workflows",
+        "Docker"
+      ],
+      "features": [
+        "Concurrent workflow inspection",
+        "DAG execution and runtime status",
+        "Watch mode and label filtering",
+        "JSON/YAML output",
+        "Docker deployment support"
+      ],
+      "nodes": [
+        {
+          "key": "cli",
+          "label": "CLI probe",
+          "description": "Concurrent inspection with watch mode and label filtering.",
+          "position": 0
+        },
+        {
+          "key": "workflows",
+          "label": "Kubernetes / Argo",
+          "description": "Workflow health, DAG execution states, and runtime status.",
+          "position": 1
+        },
+        {
+          "key": "output",
+          "label": "JSON / YAML",
+          "description": "Structured output for scriptable monitoring.",
+          "position": 2
+        }
+      ],
+      "edges": [
+        {
+          "source": "cli",
+          "target": "workflows",
+          "label": "Inspect"
+        },
+        {
+          "source": "workflows",
+          "target": "output",
+          "label": "Report"
+        }
+      ]
+    },
+    {
+      "slug": "portfolio",
+      "title": "Responsive Developer Portfolio",
+      "short_title": "Portfolio",
+      "date": "September 2025",
+      "category": "FRONTEND / DEPLOYMENT",
+      "featured": false,
+      "summary": "Reusable components. Adaptive layouts. A deployed React and TypeScript portfolio.",
+      "problem": "A developer portfolio needs to present work clearly across desktop and mobile devices.",
+      "solution": "Built a React/TypeScript portfolio with reusable components, responsive layouts, and production deployment.",
+      "outcome": "A live portfolio with layouts that adapt across desktop and mobile devices.",
+      "github_url": "https://github.com/Ashish241/PortFolio",
+      "live_url": "https://port-folio-delta-wine.vercel.app/",
+      "technologies": [
+        "React",
+        "TypeScript"
+      ],
+      "features": [
+        "Reusable React components",
+        "TypeScript frontend",
+        "Adaptive desktop and mobile layouts",
+        "Live deployment"
+      ],
+      "nodes": [
+        {
+          "key": "components",
+          "label": "React components",
+          "description": "Reusable UI components.",
+          "position": 0
+        },
+        {
+          "key": "layout",
+          "label": "Adaptive layouts",
+          "description": "Responsive desktop and mobile presentation.",
+          "position": 1
+        },
+        {
+          "key": "deploy",
+          "label": "Live website",
+          "description": "Deployed portfolio linked from the resume.",
+          "position": 2
+        }
+      ],
+      "edges": [
+        {
+          "source": "components",
+          "target": "layout",
+          "label": "Compose"
+        },
+        {
+          "source": "layout",
+          "target": "deploy",
+          "label": "Deploy"
+        }
+      ]
+    }
+  ],
+  "experience": [
+    {
+      "company": "Real IT Solutions",
+      "position": "DevOps & Full-Stack Engineer Intern",
+      "start_date": "2026-06",
+      "end_date": "2026-08",
+      "location": "Remote",
+      "highlights": [
+        "Improved deployment reliability across 3+ deployments by automating CI/CD workflows with GitHub Actions, Jenkins, Bash, and Docker; troubleshot Dockerfiles, build scripts, containers, and deployment failures.",
+        "Modernized 10+ REST endpoints by migrating backend functionality from Spring Boot microservices to FastAPI, implementing PRD/FRD requirements with the development team.",
+        "Diagnosed session, HTTP 404, database, REST API, and Axios timeout issues; monitored services with Prometheus/Grafana and validated changes using PyTest and unit testing.",
+        "Redesigned frontend interfaces and implemented responsive layouts while coordinating changes across frontend, backend, and database layers."
+      ],
+      "technologies": [
+        "FastAPI",
+        "Microservices",
+        "REST APIs",
+        "GitHub Actions",
+        "Jenkins",
+        "Docker",
+        "Bash",
+        "CI/CD",
+        "Prometheus",
+        "Grafana",
+        "PyTest",
+        "Unit Testing",
+        "Spring Boot"
+      ]
+    }
+  ],
+  "skills": [
+    {
+      "name": "React",
+      "category": "Frontend",
+      "usages": [
+        "KubASIE observability dashboard",
+        "Responsive portfolio"
+      ]
+    },
+    {
+      "name": "Next.js",
+      "category": "Frontend",
+      "usages": [
+        "Listed in resume technical skills"
+      ]
+    },
+    {
+      "name": "TypeScript",
+      "category": "Frontend",
+      "usages": [
+        "Responsive portfolio"
+      ]
+    },
+    {
+      "name": "JavaScript",
+      "category": "Programming",
+      "usages": [
+        "Listed in resume technical skills"
+      ]
+    },
+    {
+      "name": "Python",
+      "category": "Programming",
+      "usages": [
+        "Backend and predictive autoscaling ecosystem"
+      ]
+    },
+    {
+      "name": "Java",
+      "category": "Programming",
+      "usages": [
+        "Listed in resume technical skills"
+      ]
+    },
+    {
+      "name": "C++",
+      "category": "Programming",
+      "usages": [
+        "Listed in resume technical skills"
+      ]
+    },
+    {
+      "name": "FastAPI",
+      "category": "Backend",
+      "usages": [
+        "Internship backend migration",
+        "KubASIE policy service"
+      ]
+    },
+    {
+      "name": "Node.js",
+      "category": "Backend",
+      "usages": [
+        "Listed in resume technical skills"
+      ]
+    },
+    {
+      "name": "REST APIs",
+      "category": "Backend",
+      "usages": [
+        "Internship API implementation and debugging"
+      ]
+    },
+    {
+      "name": "PostgreSQL",
+      "category": "Database",
+      "usages": [
+        "Listed in resume technical skills"
+      ]
+    },
+    {
+      "name": "MySQL",
+      "category": "Database",
+      "usages": [
+        "Listed in resume technical skills"
+      ]
+    },
+    {
+      "name": "AWS",
+      "category": "Cloud",
+      "usages": [
+        "Cloud Practitioner Essentials training"
+      ]
+    },
+    {
+      "name": "GCP",
+      "category": "Cloud",
+      "usages": [
+        "Kubernetes, network security, and development environment training"
+      ]
+    },
+    {
+      "name": "Docker",
+      "category": "DevOps",
+      "usages": [
+        "Internship CI/CD and deployment troubleshooting",
+        "KubASIE packaging",
+        "kf-probe deployment"
+      ]
+    },
+    {
+      "name": "Kubernetes",
+      "category": "DevOps",
+      "usages": [
+        "KubASIE autoscaling",
+        "kf-probe workflow monitoring"
+      ]
+    },
+    {
+      "name": "Helm",
+      "category": "DevOps",
+      "usages": [
+        "KubASIE Kubernetes deployment"
+      ]
+    },
+    {
+      "name": "Terraform",
+      "category": "DevOps",
+      "usages": [
+        "Listed in resume technical skills"
+      ]
+    },
+    {
+      "name": "CI/CD",
+      "category": "DevOps",
+      "usages": [
+        "Internship deployment automation"
+      ]
+    },
+    {
+      "name": "Linux",
+      "category": "DevOps",
+      "usages": [
+        "Listed in resume technical skills"
+      ]
+    },
+    {
+      "name": "Bash",
+      "category": "DevOps",
+      "usages": [
+        "Internship build and deployment automation"
+      ]
+    },
+    {
+      "name": "PyTorch",
+      "category": "AI / ML",
+      "usages": [
+        "KubASIE LSTM workload forecasting"
+      ]
+    },
+    {
+      "name": "Prophet",
+      "category": "AI / ML",
+      "usages": [
+        "KubASIE workload forecasting"
+      ]
+    },
+    {
+      "name": "Git",
+      "category": "Tools",
+      "usages": [
+        "Listed in resume technical skills"
+      ]
+    },
+    {
+      "name": "GitHub",
+      "category": "Tools",
+      "usages": [
+        "Project repositories",
+        "Kubeflow contributor review workflows"
+      ]
+    },
+    {
+      "name": "Microservices",
+      "category": "Backend",
+      "usages": [
+        "Internship Spring Boot microservices migration"
+      ]
+    },
+    {
+      "name": "PyTest",
+      "category": "Backend",
+      "usages": [
+        "Internship validation and unit testing"
+      ]
+    },
+    {
+      "name": "GitHub Actions",
+      "category": "DevOps",
+      "usages": [
+        "Internship CI/CD automation"
+      ]
+    },
+    {
+      "name": "Jenkins",
+      "category": "DevOps",
+      "usages": [
+        "Internship CI/CD automation"
+      ]
+    },
+    {
+      "name": "Prometheus",
+      "category": "Observability",
+      "usages": [
+        "Internship service monitoring"
+      ]
+    },
+    {
+      "name": "Grafana",
+      "category": "Observability",
+      "usages": [
+        "Internship service monitoring"
+      ]
+    },
+    {
+      "name": "Monitoring",
+      "category": "Observability",
+      "usages": [
+        "Internship service monitoring"
+      ]
+    },
+    {
+      "name": "Observability",
+      "category": "Observability",
+      "usages": [
+        "Internship backend reliability and service monitoring"
+      ]
+    },
+    {
+      "name": "Unit Testing",
+      "category": "Observability",
+      "usages": [
+        "Internship change validation"
+      ]
+    }
+  ],
+  "contributions": [
+    {
+      "organization": "Kubeflow",
+      "repository": "kubeflow/website",
+      "pr_number": 4326,
+      "url": "https://github.com/kubeflow/website/pull/4326",
+      "status": "Merged",
+      "description": "Implemented dynamic GitHub star fetching for the Kubeflow homepage through the project's contributor review workflow."
+    },
+    {
+      "organization": "Kubeflow",
+      "repository": "kubeflow/pipelines",
+      "pr_number": 12989,
+      "url": "https://github.com/kubeflow/pipelines/pull/12989",
+      "status": "Contribution",
+      "description": "Added environment-variable support for pod lifecycle timeout settings, extending configuration flexibility in a cloud-native ML codebase."
+    },
+    {
+      "organization": "S3DFX-CYBER",
+      "repository": "FindMyGSoC",
+      "pr_number": 742,
+      "url": "https://github.com/S3DFX-CYBER/FindMyGSoC/pull/742",
+      "status": "Merged",
+      "description": "Reordered the navigation links in index.html to follow the intended user journey: Timeline, Organizations, AI Recommender, Watchlist, Issues, Mentors, and Guide. Addresses issue #699."
+    }
+  ],
+  "certifications": [
+    {
+      "title": "Cloud Practitioner Essentials",
+      "issuer": "AWS Training & Certification",
+      "year": 2026,
+      "kind": "Training"
+    },
+    {
+      "title": "Manage Kubernetes in Google Cloud",
+      "issuer": "Google Cloud",
+      "year": 2025,
+      "kind": "Training / credential"
+    },
+    {
+      "title": "Secure Cloud Network Skill Badge",
+      "issuer": "Google Cloud",
+      "year": 2025,
+      "kind": "Skill badge"
+    },
+    {
+      "title": "App Development Environment",
+      "issuer": "Google Cloud",
+      "year": 2024,
+      "kind": "Training / credential"
+    }
+  ],
+  "profile": {
+    "name": "Ashish Kumar Ishwar",
+    "location": "Ranchi, Jharkhand, India",
+    "email": "ashishkum2411@gmail.com",
+    "github_url": "https://github.com/Ashish241",
+    "linkedin_url": "https://www.linkedin.com/in/ashish-ishwar/",
+    "summary": "Computer Science undergraduate focused on Backend and Cloud/DevOps engineering, with hands-on experience building cloud-native systems using FastAPI, Docker, Kubernetes, CI/CD, and cloud platforms, plus contributions to Kubeflow open source.",
+    "roles": [
+      "Full-Stack Engineer",
+      "DevOps & Cloud Engineer",
+      "Backend Developer"
+    ],
+    "resume_sha256": "14e903af5e7b39851f65c1470b3167ce05acd9e62b49243e9205426f63eeb63a"
+  },
+  "education": [
+    {
+      "qualification": "B.Tech in Computer Science Engineering",
+      "institution": "Amity University Jharkhand",
+      "expected_year": 2027,
+      "grade": "CGPA: 7.66/10"
+    }
+  ]
+}

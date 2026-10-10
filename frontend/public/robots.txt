@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://port-folio-delta-wine.vercel.app/sitemap.xml
