@@ -8,7 +8,7 @@ services:
     dockerfilePath: ./backend/Dockerfile
     dockerContext: .
     # TEMPORARY: one diagnostic deployment, then remove this override.
-    dockerCommand: sh -c 'python -m app.diagnose_resend --confirm-live-send; python -m alembic upgrade head && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips=${TRUSTED_PROXY_IPS:-127.0.0.1}'
+    dockerCommand: python -m app.diagnose_resend --confirm-live-send
     healthCheckPath: /api/ready
     autoDeploy: false
     envVars:
