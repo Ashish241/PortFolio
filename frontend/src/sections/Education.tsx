@@ -23,7 +23,8 @@ export function Education({
             <span>{e.qualification}</span>
             <p>{e.institution}</p>
             <small>
-              Expected {e.expected_year} <span>{e.grade}</span>
+              {e.qualification.startsWith("B.Tech") ? "Expected " : "Completed "}
+              {e.expected_year} <span>{e.grade}</span>
             </small>
           </div>
         ))}
