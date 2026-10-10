@@ -218,3 +218,22 @@ test("project card uses typed data and opens the verified project", async () => 
     assert.deepEqual(actions[0], { type: "OPEN_PROJECT", target: "kubasie", label: "View Project" });
   } finally { cleanup(); globalThis.fetch = oldFetch; }
 });
+
+test("preview assistant retries once when an older API rejects context fields", async () => {
+  const oldFetch = globalThis.fetch;
+  const requests: any[] = [];
+  globalThis.fetch = async (_url, options) => {
+    const body = JSON.parse(options?.body as string);
+    requests.push(body);
+    if (requests.length === 1) return new Response("{}", { status: 422 });
+    return new Response(JSON.stringify({ conversation_id: "00000000-0000-4000-a000-000000000001", answer: "Verified answer", suggested_actions: [], sources: [], mode: "grounded" }));
+  };
+  const view = render(<AssistantPanel open context={{ section_id: "projects" }} onClose={() => {}} onAction={() => {}} />);
+  try {
+    fireEvent.click(view.getByText("Show his best projects."));
+    await waitFor(() => assert.ok(view.getByText("Verified answer")));
+    assert.equal(requests.length, 2);
+    assert.equal(requests[0].section_id, "projects");
+    assert.equal(requests[1].section_id, undefined);
+  } finally { cleanup(); globalThis.fetch = oldFetch; }
+});

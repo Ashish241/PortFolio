@@ -6,12 +6,18 @@ export async function askAssistant(
   signal?: AbortSignal,
   context?: AssistantContext,
 ): Promise<AssistantReply> {
-  const response = await fetch(`${base}/api/assistant/chat`, {
+  const requestSignal = signal ? AbortSignal.any([signal, AbortSignal.timeout(90000)]) : AbortSignal.timeout(90000);
+  const request = (withContext: boolean) => fetch(`${base}/api/assistant/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(90000)]) : AbortSignal.timeout(90000),
-    body: JSON.stringify({ message, conversation_id, ...context }),
+    signal: requestSignal,
+    body: JSON.stringify({ message, conversation_id, ...(withContext ? context : {}) }),
   });
+  let response = await request(true);
+  // Preview can update before Render. Older APIs reject the new optional
+  // context fields; retry once with the previous contract, without a loop.
+  if (response.status === 422 && (context?.section_id || context?.project_id))
+    response = await request(false);
   if (!response.ok) {
     if (response.status === 503)
       throw new Error(
