@@ -1,10 +1,13 @@
 import pytest
 import json
 from io import BytesIO
+from datetime import datetime, timezone
+from types import SimpleNamespace
 from urllib.error import HTTPError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.core.config import get_settings
+from app.core.config import Settings
 from app.models import ContactMessage
 from app.services import email_service
 from app import retry_email
@@ -135,7 +138,95 @@ def test_resend_http_error_logs_safe_diagnostics_and_preserves_contact(client, m
         assert record.message == 'secret-contact-body with enough detail'
     assert 'Resend HTTP 422' in caplog.text
     assert f'type={expected_type}' in caplog.text
-    assert f'message={expected}' in caplog.text
+    assert f'reason={expected}' in caplog.text
     for private in ('test-secret-api-key', 'owner@example.com', 'portfolio@example.com',
                     'sender@example.com', 'recruiter@example.com', 'secret-contact-body', 'sensitive reason'):
         assert private not in caplog.text
+
+
+@pytest.mark.parametrize('reply_to,idempotency_key', [(False, False), (True, False), (False, True), (True, True)])
+def test_resend_request_optional_fields_are_independent(reply_to, idempotency_key):
+    settings = SimpleNamespace(email_api_key='test-key', email_from_address='Portfolio <sender@example.com>',
+                               contact_receiver_email='owner@example.com')
+    message = SimpleNamespace(id=7, name='Sender', email='visitor@example.com', subject='Inquiry',
+                              message='Message text stays in request body', created_at=datetime.now(timezone.utc))
+    request = email_service._resend_request(message, settings, reply_to=reply_to,
+                                            idempotency_key=idempotency_key)
+    body = json.loads(request.data)
+    assert request.full_url == 'https://api.resend.com/emails'
+    assert request.get_method() == 'POST'
+    assert body['from'] == settings.email_from_address
+    assert body['to'] == [settings.contact_receiver_email]
+    assert body.get('reply_to') == (message.email if reply_to else None)
+    assert request.get_header('Idempotency-key') == ('portfolio-contact-7' if idempotency_key else None)
+
+
+def test_resend_settings_load_from_runtime_environment(monkeypatch):
+    monkeypatch.setenv('EMAIL_API_KEY', 'test-runtime-key')
+    monkeypatch.setenv('EMAIL_FROM_ADDRESS', 'Portfolio <sender@example.com>')
+    monkeypatch.setenv('CONTACT_RECEIVER_EMAIL', 'owner@example.com')
+    settings = Settings(_env_file=None)
+    assert settings.email_api_key == 'test-runtime-key'
+    assert settings.email_from_address == 'Portfolio <sender@example.com>'
+    assert settings.contact_receiver_email == 'owner@example.com'
+    flags = email_service._resend_config_flags(settings)
+    assert 'key_set=True' in flags and 'sender_named=True' in flags and 'recipient_set=True' in flags
+    assert all(secret not in flags for secret in ('test-runtime-key', 'sender@example.com', 'owner@example.com'))
+
+
+def test_resend_403_logs_safe_reason_and_runtime_configuration(client, monkeypatch, caplog):
+    api, engine = client
+    settings = get_settings()
+    for key, value in {
+        'email_provider': 'resend', 'email_api_key': 'test-secret-api-key',
+        'contact_receiver_email': 'owner@example.com',
+        'email_from_address': 'Portfolio <onboarding@resend.dev>',
+    }.items():
+        monkeypatch.setattr(settings, key, value)
+    calls = []
+
+    def reject(request, timeout):
+        calls.append(request)
+        error = {'name': 'opaque-provider-name', 'message':
+                 'You can only send testing emails to your own email address, not visitor@example.com'}
+        raise HTTPError(request.full_url, 403, 'secret reason', {}, BytesIO(json.dumps(error).encode()))
+
+    monkeypatch.setattr(email_service, 'urlopen', reject)
+    with caplog.at_level('WARNING'):
+        assert api.post('/api/contact', json=payload()).status_code == 201
+    assert len(calls) == 1
+    with Session(engine) as db:
+        record = db.scalar(select(ContactMessage))
+        assert record.status == 'NEW' and record.email_delivery_status == 'FAILED'
+    assert 'Resend HTTP 403, type=unknown' in caplog.text
+    assert 'reason=Resend test sender is restricted to permitted recipients.' in caplog.text
+    assert 'key_set=True' in caplog.text
+    assert 'sender_named=True' in caplog.text
+    assert 'sender_test_domain=True' in caplog.text
+    assert 'recipient_set=True' in caplog.text
+    for private in ('test-secret-api-key', 'owner@example.com', 'onboarding@resend.dev',
+                    'visitor@example.com', 'your own email address', 'secret reason', payload()['message']):
+        assert private not in caplog.text
+
+
+@pytest.mark.parametrize('provider_reply', [b'not-json', b'{}', b'{"id":""}'])
+def test_resend_malformed_success_response_keeps_message_failed(client, monkeypatch, caplog, provider_reply):
+    api, engine = client
+    settings = get_settings()
+    for key, value in {'email_provider': 'resend', 'email_api_key': 'test-key',
+                       'contact_receiver_email': 'owner@example.com',
+                       'email_from_address': 'sender@example.com'}.items():
+        monkeypatch.setattr(settings, key, value)
+
+    class Reply:
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def read(self, size): return provider_reply
+
+    monkeypatch.setattr(email_service, 'urlopen', lambda request, timeout: Reply())
+    with caplog.at_level('WARNING'):
+        assert api.post('/api/contact', json=payload()).status_code == 201
+    with Session(engine) as db:
+        record = db.scalar(select(ContactMessage))
+        assert record.status == 'NEW' and record.email_delivery_status == 'FAILED'
+    assert 'Stored message retained' in caplog.text

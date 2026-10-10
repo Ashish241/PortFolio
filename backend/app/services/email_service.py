@@ -4,6 +4,7 @@ import json
 import smtplib
 import ssl
 from email.message import EmailMessage
+from email.utils import parseaddr
 from datetime import timezone
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -33,11 +34,14 @@ def _resend_error(error: HTTPError) -> ResendDeliveryError:
     raw_type = payload.get('name', payload.get('type', 'unknown'))
     known_types = {'validation_error', 'missing_api_key', 'invalid_api_key',
                    'application_error', 'rate_limit_exceeded', 'not_found',
-                   'internal_server_error', 'forbidden', 'invalid_idempotent_request'}
+                   'internal_server_error', 'forbidden', 'invalid_idempotent_request',
+                   'invalid_from_address', 'domain_not_verified', 'restricted_api_key'}
     safe_type = raw_type if isinstance(raw_type, str) and raw_type in known_types else 'unknown'
     raw_message = payload.get('message', '')
     message = raw_message.lower() if isinstance(raw_message, str) else ''
-    if 'domain' in message and ('verif' in message or 'not found' in message):
+    if 'testing email' in message or 'test email' in message:
+        safe_message = 'Resend test sender is restricted to permitted recipients.'
+    elif 'domain' in message and ('verif' in message or 'not found' in message):
         safe_message = 'Sending domain is not verified.'
     elif 'from' in message and ('invalid' in message or 'verif' in message):
         safe_message = 'Sender address is invalid or unverified.'
@@ -45,9 +49,44 @@ def _resend_error(error: HTTPError) -> ResendDeliveryError:
         safe_message = 'API credentials were rejected.'
     elif 'rate limit' in message:
         safe_message = 'Provider rate limit reached.'
+    elif 'permission' in message or 'forbidden' in message or 'access' in message:
+        safe_message = 'API key or sender lacks permission for this request.'
     else:
         safe_message = 'See Resend dashboard for request details.'
     return ResendDeliveryError(error.code, safe_type, safe_message)
+
+
+def _resend_request(message: ContactMessage, settings, *, reply_to: bool = True,
+                    idempotency_key: bool = True) -> Request:
+    """Build one request; optional fields can be isolated in controlled tests."""
+    timestamp = message.created_at.replace(tzinfo=timezone.utc) if message.created_at.tzinfo is None else message.created_at
+    body = {
+        'from': settings.email_from_address,
+        'to': [settings.contact_receiver_email],
+        'subject': f'New portfolio inquiry #{message.id}',
+        'text': f'Sender name: {message.name}\nSender email: {message.email}\nSubject: {message.subject}\nSubmitted: {timestamp.isoformat()}\n\nMessage:\n{message.message}\n',
+    }
+    if reply_to:
+        body['reply_to'] = message.email
+    headers = {'Authorization': f'Bearer {settings.email_api_key}', 'Content-Type': 'application/json'}
+    if idempotency_key:
+        headers['Idempotency-Key'] = f'portfolio-contact-{message.id}'
+    return Request('https://api.resend.com/emails', data=json.dumps(body).encode('utf-8'),
+                   headers=headers, method='POST')
+
+
+def _resend_config_flags(settings) -> str:
+    """Only fixed labels and booleans; no credential, address or message text."""
+    sender = settings.email_from_address
+    parsed_sender = parseaddr(sender)[1]
+    return ('key_set=%s key_outer_whitespace=%s sender_set=%s sender_named=%s '
+            'sender_test_domain=%s sender_outer_whitespace=%s recipient_set=%s '
+            'recipient_outer_whitespace=%s' % (
+                bool(settings.email_api_key), settings.email_api_key != settings.email_api_key.strip(),
+                bool(sender), '<' in sender and '>' in sender,
+                parsed_sender.lower().endswith('@resend.dev'), sender != sender.strip(),
+                bool(settings.contact_receiver_email),
+                settings.contact_receiver_email != settings.contact_receiver_email.strip()))
 
 def deliver(message: ContactMessage) -> str:
     s = get_settings()
@@ -55,24 +94,7 @@ def deliver(message: ContactMessage) -> str:
         if not s.email_api_key or not s.contact_receiver_email or not s.email_from_address:
             logger.info('Email notification is not configured.')
             return 'DISABLED'
-        timestamp = message.created_at.replace(tzinfo=timezone.utc) if message.created_at.tzinfo is None else message.created_at
-        body = {
-            'from': s.email_from_address,
-            'to': [s.contact_receiver_email],
-            'reply_to': message.email,
-            'subject': f'New portfolio inquiry #{message.id}',
-            'text': f'Sender name: {message.name}\nSender email: {message.email}\nSubject: {message.subject}\nSubmitted: {timestamp.isoformat()}\n\nMessage:\n{message.message}\n',
-        }
-        request = Request(
-            'https://api.resend.com/emails',
-            data=json.dumps(body).encode('utf-8'),
-            headers={
-                'Authorization': f'Bearer {s.email_api_key}',
-                'Content-Type': 'application/json',
-                'Idempotency-Key': f'portfolio-contact-{message.id}',
-            },
-            method='POST',
-        )
+        request = _resend_request(message, s)
         try:
             with urlopen(request, timeout=10) as response:
                 result = json.loads(response.read(10000))
@@ -111,7 +133,7 @@ def notify_new_contact(message_id: int):
         except Exception as exc:
             message.email_delivery_status = 'FAILED'
             if isinstance(exc, ResendDeliveryError):
-                logger.warning('Contact notification failed for message %s (Resend HTTP %s, type=%s, message=%s). Stored message retained.', message_id, exc.status, exc.error_type, exc.safe_message)
+                logger.warning('Contact notification failed for message %s (Resend HTTP %s, type=%s, reason=%s; %s). Stored message retained.', message_id, exc.status, exc.error_type, exc.safe_message, _resend_config_flags(get_settings()))
             else:
                 logger.warning('Contact notification failed for message %s (%s). Stored message retained.', message_id, type(exc).__name__)
         try:
