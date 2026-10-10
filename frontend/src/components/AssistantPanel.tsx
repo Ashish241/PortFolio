@@ -19,15 +19,6 @@ const starters = [
   "Education timeline.",
   "Open-source work?",
 ];
-function SpideyMark() {
-  return (
-    <svg viewBox="0 0 48 48" width="32" height="32" fill="none" aria-hidden="true">
-      <path d="M24 4C13 4 7 12 7 23c0 11 8 20 17 20s17-9 17-20C41 12 35 4 24 4Z" fill="#c93246" stroke="#101827" strokeWidth="2" />
-      <path d="M24 5v37M10 15l14 12 14-12M8 25l16 7 16-7M14 8l10 12L34 8M11 34l13 1 13-1" stroke="#182033" strokeWidth="1.4" />
-      <path d="M9 21c7 0 11 3 15 8-4 5-11 7-14 2-2-3-2-7-1-10Zm30 0c-7 0-11 3-15 8 4 5 11 7 14 2 2-3 2-7 1-10Z" fill="#f7f8fb" stroke="#111827" strokeWidth="2" />
-    </svg>
-  );
-}
 export function AssistantPanel({
   open,
   onClose,
@@ -181,9 +172,6 @@ export function AssistantPanel({
       data-spidey-exclusion
     >
       <div className="assistant-header">
-        <span className="assistant-emblem" aria-hidden="true">
-          <SpideyMark />
-        </span>
         <div>
           <span className="eyebrow">YOUR GUIDE TO THE ENGINEER</span>
           <h2 id="assistant-title">
@@ -215,9 +203,6 @@ export function AssistantPanel({
       >
         {!turns.length && (
           <div className="assistant-welcome">
-            <span className="assistant-orbit" aria-hidden="true">
-              <SpideyMark />
-            </span>
             <h3>
               A little Spidey sense.
               <br />A clear view of Ashish.
