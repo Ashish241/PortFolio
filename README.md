@@ -254,3 +254,5 @@ See `VERIFICATION.md` for the actual checks and environment limitations from thi
 ## Assets and ownership
 
 The supplied portrait and resume are included for your portfolio. The Spider-Man reference is retained under `references/` for design context and is excluded from the Docker image. The procedural character uses no downloaded third-party 3D model. Google Fonts license files are included beside the font files. Spider-Man remains a third-party character; no affiliation is claimed by the site.
+
+<!-- Trigger fresh Vercel preview build -->
