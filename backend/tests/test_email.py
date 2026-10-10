@@ -126,13 +126,13 @@ def test_resend_http_error_logs_safe_diagnostics_and_preserves_contact(client, m
         raise HTTPError(request.full_url, 422, 'sensitive reason', {}, BytesIO(json.dumps(response).encode()))
     monkeypatch.setattr(email_service, 'urlopen', reject)
     with caplog.at_level('WARNING'):
-        result = api.post('/api/contact', json=payload(message='secret-contact-body'))
+        result = api.post('/api/contact', json=payload(message='secret-contact-body with enough detail'))
     assert result.status_code == 201
     with Session(engine) as db:
         record = db.scalar(select(ContactMessage))
         assert record.status == 'NEW'
         assert record.email_delivery_status == 'FAILED'
-        assert record.message == 'secret-contact-body'
+        assert record.message == 'secret-contact-body with enough detail'
     assert 'Resend HTTP 422' in caplog.text
     assert f'type={expected_type}' in caplog.text
     assert f'message={expected}' in caplog.text
