@@ -85,6 +85,8 @@ def retrieve(message: str, previous: str, facts: dict):
         return [], "missing"
     if re.search(r"education|academic|school|stud(y|ies|ied)|college|qualification|degree|university|cgpa|graduat|10th|12th", q):
         return ["education"], "education"
+    if re.search(r"those tools|those technologies", q) and previous == "skills":
+        return [key for key in facts if key.startswith("skills:")], "skills"
     topic = next((f"project:{slug}" for slug in ("kubasie", "kf-probe", "portfolio") if slug in q and (slug != "portfolio" or "project" in q)), "")
     if not topic and re.search(r"that project|strongest project", q):
         topic = previous if previous.startswith("project:") else "project:kubasie"

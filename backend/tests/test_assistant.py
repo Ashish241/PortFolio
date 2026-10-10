@@ -50,7 +50,7 @@ def test_education_timeline_and_direct_cgpa(client):
 
 def test_ten_sequential_questions_and_pronoun_followups(client):
     api, _ = client
-    questions = ["Tell me about KubASIE", "What technologies did he use?", "How does that project work?", "Does he know Docker?", "What about Python?", "Does he know Kubernetes?", "Tell me about his education", "What is his CGPA?", "What is his GitHub?", "Tell me about his internship"]
+    questions = ["Tell me about KubASIE", "What technologies did he use?", "How does that project work?", "Does he know Docker?", "What about Python?", "Does he know Kubernetes?", "What about those tools?", "Tell me about his education", "What is his CGPA?", "What is his GitHub?", "Tell me about his internship"]
     conversation = None
     for question in questions:
         result = ask(api, question, conversation)

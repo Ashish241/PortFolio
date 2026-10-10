@@ -175,3 +175,22 @@ test("education reply renders only the typed timeline component", async () => {
     assert.ok(view.getByText("Expected 2027"));
   } finally { cleanup(); globalThis.fetch = oldFetch; }
 });
+
+test("a failed answer releases Send for a successful retry", async () => {
+  const oldFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls++;
+    if (calls === 1) throw new TypeError("network unavailable");
+    return new Response(JSON.stringify({ conversation_id: "00000000-0000-4000-a000-000000000001", answer: "Docker is a verified skill.", suggested_actions: [], sources: [], mode: "grounded" }));
+  };
+  const view = render(<AssistantPanel open onClose={() => {}} onAction={() => {}} />);
+  try {
+    fireEvent.click(view.getByText("Backend experience?"));
+    await waitFor(() => assert.ok(view.getByText(/having trouble accessing the portfolio assistant/)));
+    fireEvent.change(view.getByLabelText("Ask about Ashish’s professional profile"), { target: { value: "Does he know Docker?" } });
+    fireEvent.click(view.getByLabelText("Send question"));
+    await waitFor(() => assert.ok(view.getByText("Docker is a verified skill.")));
+    assert.equal(calls, 2);
+  } finally { cleanup(); globalThis.fetch = oldFetch; }
+});
