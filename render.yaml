@@ -4,11 +4,11 @@ services:
     runtime: docker
     plan: free
     repo: https://github.com/Ashish241/PortFolio
-    branch: new-spiderman-portfolio
+    branch: main
     dockerfilePath: ./backend/Dockerfile
     dockerContext: .
     healthCheckPath: /api/ready
-    autoDeploy: false
+    autoDeployTrigger: checksPass
     envVars:
       - key: ENVIRONMENT
         value: production
