@@ -68,7 +68,8 @@ def _resend_request(message: ContactMessage, settings, *, reply_to: bool = True,
     }
     if reply_to:
         body['reply_to'] = message.email
-    headers = {'Authorization': f'Bearer {settings.email_api_key}', 'Content-Type': 'application/json'}
+    headers = {'Authorization': f'Bearer {settings.email_api_key}', 'Content-Type': 'application/json',
+               'User-Agent': 'Mozilla/5.0'}
     if idempotency_key:
         headers['Idempotency-Key'] = f'portfolio-contact-{message.id}'
     return Request('https://api.resend.com/emails', data=json.dumps(body).encode('utf-8'),

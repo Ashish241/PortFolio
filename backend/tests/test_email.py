@@ -94,6 +94,7 @@ def test_resend_https_notification_uses_verified_plaintext_and_idempotency(clien
         assert timeout == 10
         assert request.full_url == 'https://api.resend.com/emails'
         assert request.get_header('Authorization') == 'Bearer test-resend-key'
+        assert request.get_header('User-agent') == 'Mozilla/5.0'
         assert request.get_header('Idempotency-key') == 'portfolio-contact-1'
         body = json.loads(request.data)
         assert body['to'] == ['owner@example.com']
