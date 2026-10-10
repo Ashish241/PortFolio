@@ -1,5 +1,7 @@
 import pytest
 import json
+from io import BytesIO
+from urllib.error import HTTPError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.core.config import get_settings
@@ -102,3 +104,38 @@ def test_resend_https_notification_uses_verified_plaintext_and_idempotency(clien
     assert len(requests) == 1
     with Session(engine) as db:
         assert db.scalar(select(ContactMessage)).email_delivery_status == 'SENT'
+
+
+@pytest.mark.parametrize('response,expected_type,expected', [
+    ({'name': 'validation_error', 'message': 'The sending domain is not verified for sender@example.com'}, 'validation_error', 'Sending domain is not verified.'),
+    ({'name': 'validation_error', 'message': 'Unsafe recruiter@example.com secret-contact-body'}, 'validation_error', 'See Resend dashboard for request details.'),
+    ({'name': 'bad\nheader', 'message': 'Unsafe secret-contact-body'}, 'unknown', 'See Resend dashboard for request details.'),
+])
+def test_resend_http_error_logs_safe_diagnostics_and_preserves_contact(client, monkeypatch, caplog, response, expected_type, expected):
+    api, engine = client
+    settings = get_settings()
+    for key, value in {
+        'email_provider': 'resend',
+        'email_api_key': 'test-secret-api-key',
+        'contact_receiver_email': 'owner@example.com',
+        'email_from_address': 'portfolio@example.com',
+    }.items():
+        monkeypatch.setattr(settings, key, value)
+
+    def reject(request, timeout):
+        raise HTTPError(request.full_url, 422, 'sensitive reason', {}, BytesIO(json.dumps(response).encode()))
+    monkeypatch.setattr(email_service, 'urlopen', reject)
+    with caplog.at_level('WARNING'):
+        result = api.post('/api/contact', json=payload(message='secret-contact-body'))
+    assert result.status_code == 201
+    with Session(engine) as db:
+        record = db.scalar(select(ContactMessage))
+        assert record.status == 'NEW'
+        assert record.email_delivery_status == 'FAILED'
+        assert record.message == 'secret-contact-body'
+    assert 'Resend HTTP 422' in caplog.text
+    assert f'type={expected_type}' in caplog.text
+    assert f'message={expected}' in caplog.text
+    for private in ('test-secret-api-key', 'owner@example.com', 'portfolio@example.com',
+                    'sender@example.com', 'recruiter@example.com', 'secret-contact-body', 'sensitive reason'):
+        assert private not in caplog.text

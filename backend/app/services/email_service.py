@@ -1,15 +1,53 @@
-"""Optional plaintext SMTP notifications. Storage commits before delivery."""
+"""Optional plaintext email notifications. Storage commits before delivery."""
 import logging
 import json
 import smtplib
 import ssl
 from email.message import EmailMessage
 from datetime import timezone
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from app.core.config import get_settings
 from app.database.session import SessionLocal
 from app.models import ContactMessage
 logger = logging.getLogger(__name__)
+
+class ResendDeliveryError(Exception):
+    """Only pre-approved provider diagnostics may reach application logs."""
+
+    def __init__(self, status: int, error_type: str, safe_message: str):
+        self.status = status
+        self.error_type = error_type
+        self.safe_message = safe_message
+        super().__init__('Resend request failed')
+
+
+def _resend_error(error: HTTPError) -> ResendDeliveryError:
+    try:
+        payload = json.loads(error.read(4096))
+    except (ValueError, UnicodeError, OSError):
+        payload = None
+    if not isinstance(payload, dict):
+        payload = {}
+    # Provider text is untrusted and may echo request fields. Never log it verbatim.
+    raw_type = payload.get('name', payload.get('type', 'unknown'))
+    known_types = {'validation_error', 'missing_api_key', 'invalid_api_key',
+                   'application_error', 'rate_limit_exceeded', 'not_found',
+                   'internal_server_error', 'forbidden', 'invalid_idempotent_request'}
+    safe_type = raw_type if isinstance(raw_type, str) and raw_type in known_types else 'unknown'
+    raw_message = payload.get('message', '')
+    message = raw_message.lower() if isinstance(raw_message, str) else ''
+    if 'domain' in message and ('verif' in message or 'not found' in message):
+        safe_message = 'Sending domain is not verified.'
+    elif 'from' in message and ('invalid' in message or 'verif' in message):
+        safe_message = 'Sender address is invalid or unverified.'
+    elif 'api key' in message or 'unauthorized' in message:
+        safe_message = 'API credentials were rejected.'
+    elif 'rate limit' in message:
+        safe_message = 'Provider rate limit reached.'
+    else:
+        safe_message = 'See Resend dashboard for request details.'
+    return ResendDeliveryError(error.code, safe_type, safe_message)
 
 def deliver(message: ContactMessage) -> str:
     s = get_settings()
@@ -35,8 +73,11 @@ def deliver(message: ContactMessage) -> str:
             },
             method='POST',
         )
-        with urlopen(request, timeout=10) as response:
-            result = json.loads(response.read(10000))
+        try:
+            with urlopen(request, timeout=10) as response:
+                result = json.loads(response.read(10000))
+        except HTTPError as error:
+            raise _resend_error(error) from None
         if not isinstance(result, dict) or not result.get('id'):
             raise ValueError('Email provider returned no message ID')
         return 'SENT'
@@ -69,8 +110,10 @@ def notify_new_contact(message_id: int):
             message.email_delivery_status = deliver(message)
         except Exception as exc:
             message.email_delivery_status = 'FAILED'
-            # No private contents, credentials or provider response are logged.
-            logger.warning('Contact notification failed for message %s (%s). Stored message retained.', message_id, type(exc).__name__)
+            if isinstance(exc, ResendDeliveryError):
+                logger.warning('Contact notification failed for message %s (Resend HTTP %s, type=%s, message=%s). Stored message retained.', message_id, exc.status, exc.error_type, exc.safe_message)
+            else:
+                logger.warning('Contact notification failed for message %s (%s). Stored message retained.', message_id, type(exc).__name__)
         try:
             db.commit()
         except Exception as exc:
