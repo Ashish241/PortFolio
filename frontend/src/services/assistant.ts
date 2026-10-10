@@ -7,12 +7,17 @@ export async function askAssistant(
   context?: AssistantContext,
 ): Promise<AssistantReply> {
   const requestSignal = signal ? AbortSignal.any([signal, AbortSignal.timeout(90000)]) : AbortSignal.timeout(90000);
-  const request = (withContext: boolean) => fetch(`${base}/api/assistant/chat`, {
+  const request = (withContext: boolean) => {
+    const contextualProject = context?.project_id && /\b(here|this project|this one)\b/i.test(message);
+    const contextualExperience = context?.section_id === "experience" && /\b(what did he do|here|this section)\b/i.test(message);
+    const legacyMessage = contextualProject ? `${message} About ${context.project_id}.` : contextualExperience ? `${message} In his experience.` : message;
+    return fetch(`${base}/api/assistant/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     signal: requestSignal,
-    body: JSON.stringify({ message, conversation_id, ...(withContext ? context : {}) }),
+    body: JSON.stringify({ message: withContext ? message : legacyMessage, conversation_id, ...(withContext ? context : {}) }),
   });
+  };
   let response = await request(true);
   // Preview can update before Render. Older APIs reject the new optional
   // context fields; retry once with the previous contract, without a loop.

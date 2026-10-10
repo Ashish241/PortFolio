@@ -237,3 +237,24 @@ test("preview assistant retries once when an older API rejects context fields", 
     assert.equal(requests[1].section_id, undefined);
   } finally { cleanup(); globalThis.fetch = oldFetch; }
 });
+
+test("older API receives explicit selected-project wording and renders its verified project card", async () => {
+  const oldFetch = globalThis.fetch;
+  const requests: any[] = [];
+  const actions: any[] = [];
+  globalThis.fetch = async (_url, options) => {
+    requests.push(JSON.parse(options?.body as string));
+    if (requests.length === 1) return new Response("{}", { status: 422 });
+    return new Response(JSON.stringify({ conversation_id: "00000000-0000-4000-a000-000000000001", answer: "Verified project answer", suggested_actions: [], sources: [{ id: "project:kubasie", label: "KubASIE" }], mode: "grounded" }));
+  };
+  const project = { slug: "kubasie", short_title: "KubASIE", summary: "Verified workload forecast project.", technologies: ["FastAPI"], github_url: "https://github.com/Ashish241/KubASIE", live_url: null } as any;
+  const view = render(<AssistantPanel open context={{ section_id: "projects", project_id: "kubasie" }} projects={[project]} onClose={() => {}} onAction={(a) => actions.push(a)} />);
+  try {
+    fireEvent.change(view.getByLabelText("Ask about Ashish’s professional profile"), { target: { value: "What technologies were used here?" } });
+    fireEvent.click(view.getByLabelText("Send question"));
+    await waitFor(() => assert.ok(view.getByText("Verified workload forecast project.")));
+    assert.match(requests[1].message, /kubasie/i);
+    fireEvent.click(view.getByText("View Project"));
+    assert.equal(actions[0].target, "kubasie");
+  } finally { cleanup(); globalThis.fetch = oldFetch; }
+});

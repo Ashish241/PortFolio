@@ -3,6 +3,7 @@ import { ArrowUpRight, X } from "./icons";
 import { askAssistant, clearAssistant } from "../services/assistant";
 import { companionEvents } from "../companion/events";
 import type { AssistantAction, AssistantContext, AssistantReply } from "../types/assistant";
+import type { Project } from "../types/portfolio";
 interface Turn {
   id: number;
   role: "user" | "assistant";
@@ -32,11 +33,13 @@ export function AssistantPanel({
   onClose,
   onAction,
   context = {},
+  projects = [],
 }: {
   open: boolean;
   onClose: () => void;
   onAction: (a: AssistantAction) => void;
   context?: AssistantContext;
+  projects?: Project[];
 }) {
   const [turns, setTurns] = useState<Turn[]>([]),
     [message, setMessage] = useState(""),
@@ -234,7 +237,9 @@ export function AssistantPanel({
             </div>
           </div>
         )}
-        {turns.map((t) => (
+        {turns.map((t) => {
+          const card = t.reply?.project_card ?? projects.find((p) => t.reply?.sources.some((s) => s.id === `project:${p.slug}` || s.id === `detail:${p.slug}`));
+          return (
           <article
             key={t.id}
             ref={t.role === "assistant" && t.id === turns.at(-1)?.id ? (node) => { latestAnswer.current = node; } : undefined}
@@ -254,15 +259,15 @@ export function AssistantPanel({
                 ))}
               </ol>
             )}
-            {t.reply?.project_card && (
+            {card && (
               <div className="chat-project-card">
-                <strong>{t.reply.project_card.short_title}</strong>
-                <p>{t.reply.project_card.summary}</p>
-                <div className="tags">{t.reply.project_card.technologies.slice(0, 5).map((tech) => <span key={tech}>{tech}</span>)}</div>
+                <strong>{card.short_title}</strong>
+                <p>{card.summary}</p>
+                <div className="tags">{card.technologies.slice(0, 5).map((tech) => <span key={tech}>{tech}</span>)}</div>
                 <div className="chat-actions">
-                  <button onClick={() => onAction({ type: "OPEN_PROJECT", target: t.reply!.project_card!.slug, label: "View Project" })}>View Project <ArrowUpRight size={13} /></button>
-                  <a href={t.reply.project_card.github_url} target="_blank" rel="noopener noreferrer">GitHub <ArrowUpRight size={13} /></a>
-                  {t.reply.project_card.live_url && <a href={t.reply.project_card.live_url} target="_blank" rel="noopener noreferrer">Live demo <ArrowUpRight size={13} /></a>}
+                  <button onClick={() => onAction({ type: "OPEN_PROJECT", target: card.slug, label: "View Project" })}>View Project <ArrowUpRight size={13} /></button>
+                  <a href={card.github_url} target="_blank" rel="noopener noreferrer">GitHub <ArrowUpRight size={13} /></a>
+                  {card.live_url && <a href={card.live_url} target="_blank" rel="noopener noreferrer">Live demo <ArrowUpRight size={13} /></a>}
                 </div>
               </div>
             )}
@@ -313,7 +318,8 @@ export function AssistantPanel({
               </div>
             )}
           </article>
-        ))}
+          );
+        })}
         {busy && (
           <div className="assistant-thinking" role="status">
             <i />

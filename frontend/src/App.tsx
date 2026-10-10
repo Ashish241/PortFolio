@@ -204,6 +204,7 @@ export default function App() {
         onClose={closeAssistant}
         onAction={act}
         context={{ section_id: sectionId, project_id: sectionId === "projects" ? selectedProjectId ?? undefined : undefined }}
+        projects={data.projects}
       />
       {!touch && !minimal && <CursorGlow />}
     </>
