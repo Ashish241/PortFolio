@@ -3,17 +3,21 @@ import { ArrowUpRight, LoaderCircle, CheckCircle2 } from "./icons";
 import { sendContact } from "../services/api";
 export function ContactForm() {
   const started = useRef(Date.now());
+  const submitting = useRef(false);
+  const [connecting, setConnecting] = useState(false);
   const [status, setStatus] = useState<
     "idle" | "sending" | "success" | "error"
   >("idle");
   const [error, setError] = useState("");
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (status === "sending") return;
+    if (submitting.current) return;
+    submitting.current = true;
     const form = e.currentTarget;
     const values = new FormData(form);
     setStatus("sending");
     setError("");
+    const coldStart = setTimeout(() => setConnecting(true), 2500);
     try {
       await sendContact({
         name: String(values.get("name")).trim(),
@@ -33,6 +37,10 @@ export function ContactForm() {
           ? err.message
           : "Message could not be stored. Please email me directly.",
       );
+    } finally {
+      clearTimeout(coldStart);
+      setConnecting(false);
+      submitting.current = false;
     }
   }
   return (
@@ -110,6 +118,7 @@ export function ContactForm() {
         </button>
       </div>
       <div aria-live="polite" role="status">
+        {status === "sending" && connecting && <p>Connecting to the contact service. This may take a moment.</p>}
         {status === "success" && (
           <p className="form-success">
             <CheckCircle2 size={17} /> Message received and stored. Thank you

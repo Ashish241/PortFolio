@@ -24,6 +24,7 @@ export class CompanionRuntime {
   private debug: HTMLElement | null = null;
   private replayButton: HTMLButtonElement | null = null;
   private shoulderUsed = false;
+  private lastCtaReaction = -10;
   private pointer = (e: PointerEvent) => {
     if (e.pointerType === "mouse") {
       this.cursor = { x: e.clientX, y: e.clientY };
@@ -48,12 +49,13 @@ export class CompanionRuntime {
       });
   };
   private hover = (e: PointerEvent) => {
-    if (
-      (e.target as Element)?.closest(
-        ".hero-buttons,.project-card,.featured-project",
-      )
-    )
+    const target = (e.target as Element)?.closest(".hero-buttons,.project-card,.featured-project");
+    const previous = (e.relatedTarget as Element | null)?.closest?.(".hero-buttons,.project-card,.featured-project");
+    const now = performance.now() / 1000;
+    if (target && target !== previous && now - this.lastCtaReaction > 4) {
+      this.lastCtaReaction = now;
       companionEvents.emit({ type: "CTA_HOVER" });
+    }
   };
   constructor(
     private mobile = false,

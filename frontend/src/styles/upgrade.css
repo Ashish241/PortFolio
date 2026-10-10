@@ -350,6 +350,31 @@
   flex-wrap: wrap;
   gap: 7px;
 }
+.chat-project-card {
+  border: 1px solid #49627f;
+  border-radius: 12px;
+  padding: 14px;
+  background: #14243a;
+  margin: 12px 0;
+}
+.chat-project-card strong { color: #f4f7fd; }
+.chat-project-card .tags { margin: 8px 0 12px; }
+.chat-project-card .chat-actions a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #c2d7f2;
+  padding: 10px;
+  text-decoration: none;
+  border: 1px solid #34435b;
+  border-radius: 9px;
+}
+.chat-project-card .chat-actions a:focus-visible,
+.chat-project-card .chat-actions a:hover { border-color: #8badde; }
+.case-next { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 26px; padding-top: 20px; border-top: 1px solid #34435b; }
+.case-next span { width: 100%; color: #a6b6ce; font-size: 12px; }
+.case-next button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #49627f; border-radius: 8px; background: #172b44; color: #d9e6f6; padding: 9px 12px; cursor: pointer; }
+.case-next button:hover, .case-next button:focus-visible { border-color: #8badde; }
 .chat-error p {
   color: #e6b6bd;
 }

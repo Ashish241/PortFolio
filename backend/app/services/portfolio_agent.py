@@ -7,6 +7,7 @@ scaling workers. Database rate limits remain shared across workers.
 import hashlib
 import hmac
 import json
+import logging
 import re
 import threading
 import time
@@ -21,6 +22,9 @@ from app.services.portfolio import project_query, serialize_project, get_experie
 from app.services.contact import reserve_rate_limit
 from app.schemas import AssistantResponse, AssistantAction, AssistantSource, EducationMilestone
 from app.services.ai_service import development_warning
+from urllib.error import HTTPError
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -75,7 +79,7 @@ def knowledge(db: Session):
     return facts, {x.slug for x in projects}
 
 
-def retrieve(message: str, previous: str, facts: dict):
+def retrieve(message: str, previous: str, facts: dict, section_id: str | None = None, project_id: str | None = None):
     q = message.lower()
     if re.search(r"ignore (all|previous)|system prompt|api.?key|physics|homework|assignment|recipe|weather|write.*(poem|essay|code)|politic", q):
         return [], "scope"
@@ -88,6 +92,16 @@ def retrieve(message: str, previous: str, facts: dict):
     if re.search(r"those tools|those technologies", q) and previous == "skills":
         return [key for key in facts if key.startswith("skills:")], "skills"
     topic = next((f"project:{slug}" for slug in ("kubasie", "kf-probe", "portfolio") if slug in q and (slug != "portfolio" or "project" in q)), "")
+    # Visible context resolves only deictic questions. Explicit topics above and
+    # below always take precedence over what happens to be on screen.
+    contextual = bool(re.search(r"\b(here|this project|this one|this section|what did he do|what technologies were used|how does it work)\b", q))
+    explicit_other = bool(re.search(r"education|school|college|open.?source|kubeflow|resume|github|linkedin|contact|email|hire|certificat", q))
+    if not topic and contextual and not explicit_other and project_id and f"project:{project_id}" in facts:
+        topic = f"project:{project_id}"
+    if not topic and contextual and not explicit_other and section_id == "experience":
+        return ["experience:detail"], "experience"
+    if not topic and contextual and not explicit_other and section_id == "skills":
+        return [key for key in facts if key.startswith("skills:")], "skills"
     if not topic and re.search(r"that project|strongest project", q):
         topic = previous if previous.startswith("project:") else "project:kubasie"
     followup = bool(re.search(r"^(and |what (tech|did|about)|how |tell me more|more detail|explain (more|it)|what about (it|that)|does (it|he)|show (it|that))", q))
@@ -126,7 +140,8 @@ def model_select(message: str, visit: Visit, facts: dict, candidates: list[str])
         if provider is None: return candidates, "grounded"
         selected = provider.generate_response({k: facts[k][0] for k in candidates}, message, visit.history)
         return selected, get_settings().ai_provider.lower()
-    except Exception:
+    except Exception as error:
+        logger.warning("Assistant provider failed: type=%s status=%s", type(error).__name__, error.code if isinstance(error, HTTPError) else "none")
         raise HTTPException(502, "The AI provider could not answer. Please try again shortly or explore the portfolio directly.")
 
 
@@ -139,20 +154,23 @@ def actions(ids: list[str], slugs: set[str]):
         if key.startswith(("project:", "detail:")) and key.split(":", 1)[1] in slugs:
             slug = key.split(":", 1)[1]
             add("OPEN_PROJECT", slug, f"Explore {slug}")
-        elif key == "links": add("OPEN_GITHUB", "github", "Open GitHub")
-        elif key == "resume": add("DOWNLOAD_RESUME", "resume", "Download Resume")
-        elif key == "contact": add("NAVIGATE_SECTION", "contact", "Contact Ashish")
+        elif key == "links":
+            add("OPEN_GITHUB", "github", "Open GitHub")
+            add("OPEN_LINKEDIN", "linkedin", "Open LinkedIn")
+        elif key == "resume": add("OPEN_RESUME", "resume", "Download Resume")
+        elif key == "contact": add("OPEN_CONTACT", "contact", "Contact Ashish")
+        elif key == "education": add("NAVIGATE_SECTION", "education", "View education")
         elif key in ("experience", "experience:detail", "open-source") or key.startswith(("skills:", "technology:")):
             target = "experience" if key.startswith("experience") else key if key == "open-source" else "skills"
             add("NAVIGATE_SECTION", target, f"View {target.replace('-', ' ')}")
-    return result[:4]
+    return result[:2]
 
 
 def owner_hash(ip: str):
     return hmac.new(get_settings().ip_hash_secret.encode(), ("assistant:" + ip).encode(), hashlib.sha256).hexdigest()
 
 
-def chat(db: Session, message: str, conversation_id: str | None, ip: str):
+def chat(db: Session, message: str, conversation_id: str | None, ip: str, section_id: str | None = None, project_id: str | None = None):
     s = get_settings()
     if s.assistant_mode != "grounded" and (not s.provider_api_key or not s.ai_model):
         raise HTTPException(503, f"Ask Spidey is not configured yet. The site owner must set {s.provider_key_name} on the backend.")
@@ -174,7 +192,7 @@ def chat(db: Session, message: str, conversation_id: str | None, ip: str):
         visit.turns += 1
     try:
         facts, slugs = knowledge(db)
-        ids, topic = retrieve(message, visit.topic, facts)
+        ids, topic = retrieve(message, visit.topic, facts, section_id, project_id if project_id in slugs else None)
         mode = "grounded"
         if ids and topic != "education" and not all(key.startswith("technology:") for key in ids):
             ids, mode = model_select(message, visit, facts, ids)
@@ -199,7 +217,10 @@ def chat(db: Session, message: str, conversation_id: str | None, ip: str):
                 milestones = [EducationMilestone(level=e.qualification.replace(" in Computer Science Engineering", " (CSE)"), institution=e.institution, year=f"Expected {e.expected_year}" if "B.Tech" in e.qualification else str(e.expected_year), score=e.grade.split("/")[0].replace("CGPA: ", "") + (" CGPA" if "CGPA" in e.grade else "")) for e in records]
         if re.search(r"hire|suitable|strongest", message.lower()) and ids:
             answer = "These verified examples support a conversation about his fit for the role:\n\n" + answer
-        result = AssistantResponse(conversation_id=conversation_id, answer=answer, suggested_actions=actions(ids, slugs) if ids else [AssistantAction(type="NAVIGATE_SECTION", target="contact", label="Contact Ashish")], sources=[AssistantSource(id=k, label=facts[k][1]) for k in ids], mode=mode, warning=development_warning() if mode == "grounded" else ("Spidey is having trouble accessing the portfolio assistant right now. You can still explore the projects, experience, skills, and resume directly. Showing verified portfolio retrieval." if mode == "grounded-fallback" else None), ui_component=component, data=milestones)
+        explicit_project = bool(re.search(r"\b(project|kubasie|kf-probe)\b", message.lower())) or bool(re.search(r"\b(this|here)\b", message.lower()) and project_id)
+        card_slug = next((k.split(":", 1)[1] for k in ids if k.startswith(("project:", "detail:"))), None) if explicit_project else None
+        card = next((serialize_project(p) for p in db.scalars(project_query()) if p.slug == card_slug), None) if card_slug in slugs else None
+        result = AssistantResponse(conversation_id=conversation_id, answer=answer, suggested_actions=actions(ids, slugs) if ids else [AssistantAction(type="NAVIGATE_SECTION", target="contact", label="Contact Ashish")], sources=[AssistantSource(id=k, label=facts[k][1]) for k in ids], mode=mode, warning=development_warning() if mode == "grounded" else ("Spidey is having trouble accessing the portfolio assistant right now. You can still explore the projects, experience, skills, and resume directly. Showing verified portfolio retrieval." if mode == "grounded-fallback" else None), ui_component=component, data=milestones, project_card=card)
         with _lock:
             visit.topic = topic if topic not in ("scope", "missing") else visit.topic
             visit.history = (visit.history + [{"question": message, "fact_ids": ids}])[-6:]

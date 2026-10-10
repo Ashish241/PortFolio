@@ -838,6 +838,7 @@ img {
   margin: 22px 0 16px;
   align-items: center;
 }
+.architecture-map { display: block; width: 100%; height: auto; margin: 16px 0 0; overflow: visible; }
 .node-wrap {
   flex: 1;
   display: flex;

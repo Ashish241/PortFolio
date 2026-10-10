@@ -57,7 +57,7 @@ test("assistant sends questions, renders verified sources/actions, handles follo
     />,
   );
   try {
-    fireEvent.click(view.getByText("Show his strongest projects"));
+    fireEvent.click(view.getByText("Show his best projects."));
     await waitFor(() => assert.ok(view.getByText(/forecasts workload/)));
     assert.equal(companionEvents.ai, "response");
     assert.ok(view.getByText("Groq AI · verified portfolio facts"));
@@ -79,7 +79,7 @@ test("assistant sends questions, renders verified sources/actions, handles follo
     );
     fireEvent.click(view.getByText("Clear"));
     await waitFor(() =>
-      assert.ok(view.getByText("Show his strongest projects")),
+      assert.ok(view.getByText("Show his best projects.")),
     );
     assert.ok(String(calls.at(-1).url).endsWith("/clear"));
   } finally {
@@ -127,7 +127,7 @@ test("outside pointer closes chat while panel and shared triggers stay open", ()
   );
   fireEvent.pointerDown(view.getByRole("dialog"));
   fireEvent.pointerDown(view.getByRole("textbox"));
-  fireEvent.pointerDown(view.getByText("Tell me about Ashish"));
+  fireEvent.pointerDown(view.getByText("Why hire Ashish?"));
   fireEvent.pointerDown(trigger);
   assert.equal(closed, 0);
   fireEvent.pointerDown(document.body);
@@ -169,7 +169,7 @@ test("education reply renders only the typed timeline component", async () => {
   ] }));
   const view = render(<AssistantPanel open onClose={() => {}} onAction={() => {}} />);
   try {
-    fireEvent.click(view.getByText("Tell me about Ashish"));
+    fireEvent.click(view.getByText("Education timeline."));
     await waitFor(() => assert.ok(view.getByLabelText("Ashish's education timeline")));
     assert.equal(view.getByLabelText("Ashish's education timeline").querySelectorAll("li").length, 3);
     assert.ok(view.getByText("Expected 2027"));
@@ -192,5 +192,29 @@ test("a failed answer releases Send for a successful retry", async () => {
     fireEvent.click(view.getByLabelText("Send question"));
     await waitFor(() => assert.ok(view.getByText("Docker is a verified skill.")));
     assert.equal(calls, 2);
+  } finally { cleanup(); globalThis.fetch = oldFetch; }
+});
+
+test("project card uses typed data and opens the verified project", async () => {
+  const oldFetch = globalThis.fetch;
+  const actions: any[] = [];
+  let request: any;
+  globalThis.fetch = async (_url, options) => {
+    request = JSON.parse(options?.body as string);
+    return new Response(JSON.stringify({
+      conversation_id: "00000000-0000-4000-a000-000000000001",
+      answer: "KubASIE is a workload forecasting project.",
+      suggested_actions: [], sources: [], mode: "grounded",
+      project_card: { slug: "kubasie", short_title: "KubASIE", summary: "Forecasting for Kubernetes workloads.", technologies: ["FastAPI", "Kubernetes"], github_url: "https://github.com/Ashish241/KubASIE", live_url: null },
+    }));
+  };
+  const view = render(<AssistantPanel open context={{ section_id: "projects", project_id: "kubasie" }} onClose={() => {}} onAction={(a) => actions.push(a)} />);
+  try {
+    fireEvent.click(view.getByText("Show his best projects."));
+    await waitFor(() => assert.ok(view.getByText("Forecasting for Kubernetes workloads.")));
+    assert.equal(request.section_id, "projects");
+    assert.equal(request.project_id, "kubasie");
+    fireEvent.click(view.getByText("View Project"));
+    assert.deepEqual(actions[0], { type: "OPEN_PROJECT", target: "kubasie", label: "View Project" });
   } finally { cleanup(); globalThis.fetch = oldFetch; }
 });

@@ -8,6 +8,7 @@ export function Education({
 }) {
   return (
     <section
+      id="education"
       className="section education-section"
       aria-labelledby="education-title"
     >

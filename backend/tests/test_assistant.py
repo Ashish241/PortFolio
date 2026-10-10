@@ -48,6 +48,26 @@ def test_education_timeline_and_direct_cgpa(client):
     assert direct["ui_component"] is None and direct["data"] is None
 
 
+def test_visible_context_is_bounded_and_explicit_questions_win(client):
+    api, _ = client
+    project = api.post("/api/assistant/chat", json={"message": "What technologies were used here?", "section_id": "projects", "project_id": "kubasie"}).json()
+    assert project["project_card"]["slug"] == "kubasie"
+    assert "FastAPI" in project["answer"]
+    assert len(project["suggested_actions"]) <= 2
+    experience = api.post("/api/assistant/chat", json={"message": "What did he do?", "section_id": "experience"}).json()
+    assert any(s["id"].startswith("experience") for s in experience["sources"])
+    unrelated = api.post("/api/assistant/chat", json={"message": "Tell me about his education", "section_id": "projects", "project_id": "kubasie"}).json()
+    assert unrelated["ui_component"] == "education_timeline"
+    assert unrelated["project_card"] is None
+    invalid = api.post("/api/assistant/chat", json={"message": "Tell me about this project", "section_id": "projects", "project_id": "not-real"}).json()
+    assert invalid["project_card"] is None
+    assert api.post("/api/assistant/chat", json={"message": "Hello", "section_id": "unknown"}).status_code == 422
+    links = ask(api, "What is his GitHub and LinkedIn?").json()
+    assert {a["type"] for a in links["suggested_actions"]} == {"OPEN_GITHUB", "OPEN_LINKEDIN"}
+    resume = ask(api, "Download his resume").json()
+    assert resume["suggested_actions"][0]["type"] == "OPEN_RESUME"
+
+
 def test_ten_sequential_questions_and_pronoun_followups(client):
     api, _ = client
     questions = ["Tell me about KubASIE", "What technologies did he use?", "How does that project work?", "Does he know Docker?", "What about Python?", "Does he know Kubernetes?", "What about those tools?", "Tell me about his education", "What is his CGPA?", "What is his GitHub?", "Tell me about his internship"]

@@ -16,7 +16,7 @@ DB = Annotated[Session, Depends(get_db)]
 
 @router.post("/assistant/chat", response_model=AssistantResponse)
 def assistant_chat(payload: AssistantRequest, request: Request, db: DB):
-    return chat(db, payload.message, payload.conversation_id, request.client.host if request.client else "unknown")
+    return chat(db, payload.message, payload.conversation_id, request.client.host if request.client else "unknown", payload.section_id, payload.project_id)
 
 
 @router.post("/assistant/clear")

@@ -18,6 +18,24 @@ export function Architecture({
         <span className="status-dot" /> SYSTEM ARCHITECTURE{" "}
         <span>INTERACTIVE</span>
       </div>
+      {!compact && project.nodes.length > 1 && (
+        <svg className="architecture-map" viewBox="0 0 600 136" role="img" aria-label={`${project.short_title} architecture: ${project.edges.map((edge) => `${project.nodes.find((n) => n.key === edge.source)?.label} to ${project.nodes.find((n) => n.key === edge.target)?.label}`).join("; ")}`}>
+          <defs><marker id={`architecture-arrow-${project.slug}`} markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7" fill="#729bd4" /></marker></defs>
+          {project.edges.map((edge) => {
+            const from = project.nodes.findIndex((n) => n.key === edge.source);
+            const to = project.nodes.findIndex((n) => n.key === edge.target);
+            if (from < 0 || to < 0) return null;
+            const step = 520 / (project.nodes.length - 1);
+            const x1 = 40 + from * step, x2 = 40 + to * step;
+            const bend = Math.abs(to - from) > 1 ? 20 : 0;
+            return <path key={`${edge.source}-${edge.target}`} d={`M ${x1} 66 Q ${(x1 + x2) / 2} ${66 - bend} ${x2} 66`} fill="none" stroke="#729bd4" strokeWidth="2" markerEnd={`url(#architecture-arrow-${project.slug})`}><title>{edge.label}</title></path>;
+          })}
+          {project.nodes.map((n, i) => <g key={n.key}>
+            <circle cx={40 + i * 520 / (project.nodes.length - 1)} cy="66" r="8" fill={node?.key === n.key ? "#e26778" : "#78a9ed"} />
+            <text x={40 + i * 520 / (project.nodes.length - 1)} y="105" textAnchor="middle" fill="#d8e7fa" fontSize="12">{n.label}</text>
+          </g>)}
+        </svg>
+      )}
       <div className="architecture-flow">
         {project.nodes.map((n, i) => {
           const Icon = icons[i % icons.length];

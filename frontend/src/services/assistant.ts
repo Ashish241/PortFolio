@@ -1,15 +1,16 @@
-import type { AssistantReply } from "../types/assistant";
+import type { AssistantContext, AssistantReply } from "../types/assistant";
 const base = (import.meta.env?.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 export async function askAssistant(
   message: string,
   conversation_id: string | null,
   signal?: AbortSignal,
+  context?: AssistantContext,
 ): Promise<AssistantReply> {
   const response = await fetch(`${base}/api/assistant/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(90000)]) : AbortSignal.timeout(90000),
-    body: JSON.stringify({ message, conversation_id }),
+    body: JSON.stringify({ message, conversation_id, ...context }),
   });
   if (!response.ok) {
     if (response.status === 503)

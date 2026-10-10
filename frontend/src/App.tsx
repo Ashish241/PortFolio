@@ -16,7 +16,7 @@ import { SpiderFallback } from "./components/SpiderFallback";
 import { CursorGlow } from "./components/CursorGlow";
 import { AssistantPanel } from "./components/AssistantPanel";
 import { companionEvents } from "./companion/events";
-import type { AssistantAction } from "./types/assistant";
+import type { AssistantAction, AssistantContext } from "./types/assistant";
 import { NotFound } from "./components/NotFound";
 import { usePortfolioData } from "./hooks/usePortfolioData";
 import { useMedia } from "./hooks/useMedia";
@@ -29,12 +29,28 @@ export default function App() {
 
   const touch = useMedia("(pointer: coarse)");
   const [project, setProject] = useState<Project | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const selectProject = (selected: Project) => {
+    setSelectedProjectId(selected.slug);
+    setProject(selected);
+  };
   const [sceneReady, setSceneReady] = useState(false);
   const [character, setCharacter] = useState(
     () => sessionStorage.getItem("spidey-hidden") !== "true",
   );
   const [renderCharacter, setRenderCharacter] = useState(character);
   const [assistant, setAssistant] = useState(false);
+  const [sectionId, setSectionId] = useState<AssistantContext["section_id"]>("home");
+  useEffect(() => {
+    const sectionIds = ["home", "about", "projects", "experience", "skills", "open-source", "education", "contact"] as const;
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (visible && sectionIds.includes(visible.target.id as typeof sectionIds[number]))
+        setSectionId(visible.target.id as typeof sectionIds[number]);
+    }, { rootMargin: "-20% 0px -45% 0px", threshold: [0, 0.25, 0.5] });
+    sectionIds.forEach((id) => { const node = document.getElementById(id); if (node) observer.observe(node); });
+    return () => observer.disconnect();
+  }, []);
   const openSpideyAssistant = useCallback(() => {
     companionEvents.requestAssistantOpen(() => setAssistant(true));
   }, []);
@@ -44,7 +60,7 @@ export default function App() {
   }, []);
   const act = (action: AssistantAction) => {
     if (
-      action.type === "NAVIGATE_SECTION" &&
+      (action.type === "NAVIGATE_SECTION" || action.type === "OPEN_CONTACT") &&
       [
         "home",
         "about",
@@ -52,8 +68,9 @@ export default function App() {
         "experience",
         "skills",
         "open-source",
+        "education",
         "contact",
-      ].includes(action.target)
+      ].includes(action.target) && (action.type !== "OPEN_CONTACT" || action.target === "contact")
     ) {
       companionEvents.emit({ type: "USER_NAVIGATE", section: action.target });
       closeAssistant();
@@ -64,11 +81,13 @@ export default function App() {
       const found = data.projects.find((p) => p.slug === action.target);
       if (found) {
         closeAssistant();
-        setProject(found);
+        selectProject(found);
       }
     } else if (action.type === "OPEN_GITHUB" && action.target === "github")
       window.open(data.profile.github_url, "_blank", "noopener,noreferrer");
-    else if (action.type === "DOWNLOAD_RESUME" && action.target === "resume") {
+    else if (action.type === "OPEN_LINKEDIN" && action.target === "linkedin")
+      window.open(data.profile.linkedin_url, "_blank", "noopener,noreferrer");
+    else if ((action.type === "OPEN_RESUME" || action.type === "DOWNLOAD_RESUME") && action.target === "resume") {
       const a = document.createElement("a");
       a.href = "/assets/Ashish_Kumar_Ishwar_Resume.pdf";
       a.download = "Ashish_Kumar_Ishwar_Resume.pdf";
@@ -107,7 +126,7 @@ export default function App() {
       <main id="main">
         <Hero minimal={minimal} profile={data.profile} />
         <About />
-        <Projects projects={data.projects} onSelect={setProject} />
+        <Projects projects={data.projects} onSelect={selectProject} />
         <Experience experience={data.experience} />
         <Skills skills={data.skills} />
         <OpenSource contributions={data.contributions} />
@@ -184,6 +203,7 @@ export default function App() {
         open={assistant}
         onClose={closeAssistant}
         onAction={act}
+        context={{ section_id: sectionId, project_id: sectionId === "projects" ? selectedProjectId ?? undefined : undefined }}
       />
       {!touch && !minimal && <CursorGlow />}
     </>

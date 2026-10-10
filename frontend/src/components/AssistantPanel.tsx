@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ArrowUpRight, X } from "./icons";
 import { askAssistant, clearAssistant } from "../services/assistant";
 import { companionEvents } from "../companion/events";
-import type { AssistantAction, AssistantReply } from "../types/assistant";
+import type { AssistantAction, AssistantContext, AssistantReply } from "../types/assistant";
 interface Turn {
   id: number;
   role: "user" | "assistant";
@@ -11,14 +11,12 @@ interface Turn {
   error?: boolean;
 }
 const starters = [
-  "Tell me about Ashish",
-  "Show his strongest projects",
-  "Why should I hire him?",
-  "DevOps experience?",
+  "Why hire Ashish?",
+  "Show his best projects.",
   "Backend experience?",
+  "DevOps experience?",
+  "Education timeline.",
   "Open-source work?",
-  "Download Resume",
-  "GitHub",
 ];
 function SpideyMark() {
   return (
@@ -33,15 +31,18 @@ export function AssistantPanel({
   open,
   onClose,
   onAction,
+  context = {},
 }: {
   open: boolean;
   onClose: () => void;
   onAction: (a: AssistantAction) => void;
+  context?: AssistantContext;
 }) {
   const [turns, setTurns] = useState<Turn[]>([]),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false);
   const [mode, setMode] = useState("Verified portfolio knowledge");
+  const [connecting, setConnecting] = useState(false);
   const panel = useRef<HTMLElement>(null);
   const outsideClose = useRef(false);
   const conversation = useRef<string | null>(null),
@@ -103,11 +104,13 @@ export function AssistantPanel({
     const abort = new AbortController();
     controller.current = abort;
     setBusy(true);
+    setConnecting(false);
+    const coldStart = setTimeout(() => setConnecting(true), 2500);
     setMessage("");
     setTurns((t) => [...t, { id: ++serial.current, role: "user", text: q }]);
     companionEvents.emit({ type: "AI_REQUEST_START" });
     try {
-      const reply = await askAssistant(q, conversation.current, abort.signal);
+      const reply = await askAssistant(q, conversation.current, abort.signal, context);
       if (currentGeneration !== generation.current) return;
       conversation.current = reply.conversation_id;
       setMode(
@@ -135,6 +138,7 @@ export function AssistantPanel({
         { id: ++serial.current, role: "assistant", text, error: true },
       ]);
     } finally {
+      clearTimeout(coldStart);
       if (currentGeneration !== generation.current) return;
       controller.current = null;
       requestBusy.current = false;
@@ -153,6 +157,7 @@ export function AssistantPanel({
     conversation.current = null;
     requestBusy.current = false;
     setBusy(false);
+    setConnecting(false);
     setMode("Verified portfolio knowledge");
     setTurns([]);
     setMessage("");
@@ -249,6 +254,18 @@ export function AssistantPanel({
                 ))}
               </ol>
             )}
+            {t.reply?.project_card && (
+              <div className="chat-project-card">
+                <strong>{t.reply.project_card.short_title}</strong>
+                <p>{t.reply.project_card.summary}</p>
+                <div className="tags">{t.reply.project_card.technologies.slice(0, 5).map((tech) => <span key={tech}>{tech}</span>)}</div>
+                <div className="chat-actions">
+                  <button onClick={() => onAction({ type: "OPEN_PROJECT", target: t.reply!.project_card!.slug, label: "View Project" })}>View Project <ArrowUpRight size={13} /></button>
+                  <a href={t.reply.project_card.github_url} target="_blank" rel="noopener noreferrer">GitHub <ArrowUpRight size={13} /></a>
+                  {t.reply.project_card.live_url && <a href={t.reply.project_card.live_url} target="_blank" rel="noopener noreferrer">Live demo <ArrowUpRight size={13} /></a>}
+                </div>
+              </div>
+            )}
             {t.reply?.sources.length ? (
               <div className="chat-sources" aria-label="Answer sources">
                 {t.reply.sources.slice(0, 4).map((s) => (
@@ -258,7 +275,7 @@ export function AssistantPanel({
             ) : null}
             {t.reply?.suggested_actions.length ? (
               <div className="chat-actions">
-                {t.reply.suggested_actions.map((a) => (
+                {t.reply.suggested_actions.slice(0, 2).map((a) => (
                   <button
                     key={`${a.type}:${a.target}`}
                     onClick={() => onAction(a)}
@@ -302,7 +319,7 @@ export function AssistantPanel({
             <i />
             <i />
             <i />
-            <span>Checking the verified portfolio…</span>
+            <span>{connecting ? "Connecting to the portfolio assistant. This may take a moment." : "Checking the verified portfolio…"}</span>
           </div>
         )}
       </div>

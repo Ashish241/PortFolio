@@ -3,6 +3,7 @@ import { X, ArrowUpRight, Github } from "./icons";
 import type { Project } from "../types/portfolio";
 import { Architecture } from "./Architecture";
 import { ExternalLink } from "./ExternalLink";
+import { companionEvents } from "../companion/events";
 export function CaseStudyDialog({
   project,
   onClose,
@@ -79,6 +80,16 @@ export function CaseStudyDialog({
               </ExternalLink>
             )}
           </div>
+          <nav className="case-next" aria-label="Continue exploring Ashish's portfolio">
+            <span>Explore the work behind this project</span>
+            {[["skills", "Related skills"], ["experience", "Experience"], ["contact", "Contact Ashish"]].map(([section, label]) => (
+              <button key={section} onClick={() => {
+                onClose();
+                companionEvents.emit({ type: "USER_NAVIGATE", section });
+                requestAnimationFrame(() => document.getElementById(section)?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }));
+              }}>{label} <ArrowUpRight size={15} /></button>
+            ))}
+          </nav>
         </div>
       )}
     </dialog>

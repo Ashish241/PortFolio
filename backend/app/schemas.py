@@ -92,10 +92,12 @@ class AssistantRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     message: str = Field(min_length=2, max_length=1000)
     conversation_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+    section_id: Literal["home", "about", "projects", "experience", "skills", "open-source", "education", "contact"] | None = None
+    project_id: str | None = Field(default=None, pattern=r"^[a-z0-9-]{1,60}$")
 
 
 class AssistantAction(BaseModel):
-    type: Literal["NAVIGATE_SECTION", "OPEN_PROJECT", "OPEN_GITHUB", "DOWNLOAD_RESUME"]
+    type: Literal["NAVIGATE_SECTION", "OPEN_PROJECT", "OPEN_GITHUB", "OPEN_LINKEDIN", "OPEN_RESUME", "OPEN_CONTACT", "DOWNLOAD_RESUME"]
     target: str
     label: str
 
@@ -121,3 +123,4 @@ class AssistantResponse(BaseModel):
     warning: str | None = None
     ui_component: Literal["education_timeline"] | None = None
     data: list[EducationMilestone] | None = None
+    project_card: ProjectOut | None = None
