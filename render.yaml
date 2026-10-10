@@ -7,6 +7,8 @@ services:
     branch: new-spiderman-portfolio
     dockerfilePath: ./backend/Dockerfile
     dockerContext: .
+    # TEMPORARY: controlled diagnostic deployment; remove after reading logs.
+    dockerCommand: python -m app.diagnose_resend --confirm-live-send
     healthCheckPath: /api/ready
     autoDeploy: false
     envVars:
