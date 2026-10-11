@@ -539,13 +539,17 @@ export class AnchorManager {
       poses: ["HANG_IDLE"],
     };
   }
-  safe(p: Point, mobile = false, shoulder = false) {
+  safe(p: Point, mobile = false, shoulder = false, ignoreAssistant = false) {
     const w = 32,
       h = 55;
     void mobile;
     if (p.x < w || p.x > innerWidth - w || p.y < h || p.y > innerHeight - h)
       return false;
     return !this.exclusions.some((b) => {
+      if (!b.element.isConnected) return false;
+      // The open panel covers mobile supports without moving the page beneath it.
+      // Keep those supports available to the paused character during chat.
+      if (ignoreAssistant && b.element.closest(".assistant-panel")) return false;
       if (shoulder && b.portrait) return false;
       const sy = b.fixed ? 0 : scrollY;
       return (

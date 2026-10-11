@@ -433,9 +433,7 @@ export class CompanionEngine {
     }
 
     if (
-      (i.scrolling ||
-        this.navbarMode ||
-        (!this.supportAnchor && i.ai !== "closed")) &&
+      (this.navbarMode || (i.scrolling && i.ai === "closed")) &&
       this.scrollMotion(dt, i)
     )
       return;
@@ -767,6 +765,11 @@ export class CompanionEngine {
       this.activeWebAnchor = this.suspended ? this.supportAnchor : null;
       if (this.suspended)
         this.web.anchor = { ...this.supportAnchor.attachment };
+      if (
+        i.ai === "closed" &&
+        ["AI_LISTENING", "AI_THINKING", "AI_RESPONSE", "PAUSED_FOR_CURSOR"].includes(this.state)
+      )
+        this.state = this.suspended ? "HANGING" : "PERCHED";
     }
   }
 }
