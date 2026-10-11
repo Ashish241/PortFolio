@@ -167,7 +167,13 @@ export class CompanionRuntime {
       mobile: this.mobile,
       reduced: this.reduced,
       shoulderUsed: this.shoulderUsed,
-      safe: (p, shoulder) => this.anchors.safe(p, this.mobile, shoulder),
+      safe: (p, shoulder) =>
+        this.anchors.safe(
+          p,
+          this.mobile,
+          shoulder,
+          companionEvents.ai !== "closed" || !!document.querySelector(".assistant-panel"),
+        ),
     };
     if (input.navbar) input.targets.push(input.navbar);
     const before = { ...this.engine.position },

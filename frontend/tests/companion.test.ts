@@ -129,6 +129,48 @@ test("AI waits for support and keeps the valid hanging web when paused", () => {
   assert.deepEqual(e.web.anchor, h.attachment);
 });
 
+test("mobile chat does not start a navbar rappel or displace a supported character", () => {
+  const perch = target("mobile-card", 150, 450);
+  const navbar = { ...target("navbar-scroll", 150, 80, true), elementType: "navbar" };
+  const e = new CompanionEngine(375, 812);
+  e.introDone = true;
+  for (let cycle = 0; cycle < 10; cycle++) {
+    e.tick(0.02, input({ width: 375, height: 812, now: cycle, mobile: true, reduced: true, targets: [perch, navbar], navbar, ai: "listening" }));
+    assert.equal(e.state, "AI_LISTENING");
+    assert.equal(e.supportAnchor?.id, perch.id);
+    assert.deepEqual(e.position, supportedPosition(perch, true));
+    assert.equal(e.web.visible, false);
+    e.tick(0.02, input({ width: 375, height: 812, now: cycle + 0.5, mobile: true, reduced: true, targets: [perch, navbar], navbar }));
+    assert.equal(e.rotation, 0);
+    assert.equal(e.web.visible, false);
+  }
+  e.supportAnchor = null;
+  e.tick(0.02, input({ width: 375, height: 812, now: 11, mobile: true, reduced: true, targets: [perch, navbar], navbar, ai: "listening" }));
+  assert.notEqual(e.state, "SCROLL_RAPPELLING");
+  assert.notEqual(e.activeWebAnchor?.id, navbar.id);
+});
+
+test("mobile hanging chat closes with its character and web connected", () => {
+  const hang = target("mobile-hang", 190, 210, true);
+  const e = new CompanionEngine(390, 844);
+  e.introDone = true;
+  e.tick(0.02, input({ width: 390, height: 844, mobile: true, reduced: true, targets: [hang] }));
+  for (let n = 1; n <= 100; n++)
+    e.tick(0.02, input({ width: 390, height: 844, now: n * 0.02, mobile: true, reduced: true, targets: [hang] }));
+  assert.equal(e.supportAnchor?.id, hang.id);
+  for (let cycle = 0; cycle < 10; cycle++) {
+    e.tick(0.02, input({ width: 390, height: 844, now: 3 + cycle, mobile: true, reduced: true, targets: [hang], ai: "listening" }));
+    assert.equal(e.state, "AI_LISTENING");
+    e.tick(0.02, input({ width: 430, height: 932, now: 3.5 + cycle, mobile: true, reduced: true, targets: [hang] }));
+    assert.equal(e.supportAnchor?.id, hang.id);
+    assert.equal(e.state, "HANGING");
+    assert.equal(e.rotation, Math.PI);
+    assert.equal(e.web.visible, true);
+    assert.equal(e.activeWebAnchor?.id, hang.id);
+    assert.deepEqual(e.web.anchor, hang.attachment);
+  }
+});
+
 test("web tip extends before departure and only uses a verified visible object", () => {
   const e = new CompanionEngine(1440, 1000);
   e.tick(0.02, input());

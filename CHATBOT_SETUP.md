@@ -1,6 +1,6 @@
 # Ask Spidey — Groq setup
 
-The default provider is **Groq**. The backend first requests **`llama-3.1-8b-instant`**. Groq [deprecated that model for free and developer-tier accounts](https://console.groq.com/docs/deprecations), so a `model_not_found` response automatically retries Groq's supported replacement, **`openai/gpt-oss-20b`**. No OpenAI key or extra SDK installation is required. The backend validates returned portfolio fact IDs with either model.
+The default provider is **Groq**. The backend requests `llama-3.1-8b-instant` first. If Groq returns `model_not_found`, it retries with `openai/gpt-oss-20b` through the same Groq API key. The backend validates returned portfolio fact IDs before building an answer.
 
 ## Add your key
 
@@ -59,6 +59,4 @@ HTTP 503 indicates missing backend key/configuration. HTTP 502 indicates a Groq 
 
 The existing `AI_API_KEY` field is the sole provider key field. Optional overrides are `AI_PROVIDER=groq`, `AI_MODEL=llama-3.1-8b-instant`, and `ASSISTANT_MODE=auto`. OpenAI is retained only as an explicitly selected optional provider.
 
-The model's [official documentation](https://console.groq.com/docs/model/llama-3.1-8b-instant) lists JSON object mode. This is not strict provider-side JSON-schema enforcement, so the backend validates the shape, ID membership, item types/count and completion status before accepting output.
-
-No real key is shipped. The configured local key was verified with a live Groq request through the fallback path; your key stays in the ignored `backend/.env` file.
+The backend validates response shape, ID membership, item types, item count, and completion status before accepting provider output. No real key is shipped; keep the local key in the ignored `backend/.env` file.

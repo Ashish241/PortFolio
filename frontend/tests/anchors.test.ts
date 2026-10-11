@@ -173,6 +173,7 @@ test("anchor/exclusion measurements are cached between frames and resize registr
     );
     assert.equal(registry.safe({ x: 300, y: 670 }), false, "Input protected");
     assert.equal(registry.safe({ x: 1150, y: 300 }), false, "Chat protected");
+    assert.equal(registry.safe({ x: 1150, y: 300 }, true, false, true), true, "Chat overlay does not invalidate a paused support");
     assert.equal(
       registry.safe({ x: 300, y: 80 }),
       false,
