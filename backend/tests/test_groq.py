@@ -108,3 +108,21 @@ def test_groq_missing_key_and_auth_failure_do_not_expose_secrets(client, monkeyp
     monkeypatch.setattr(ai_service, "urlopen", rejected)
     failed = api.post("/api/assistant/chat", json={"message": "Tell me about Ashish"})
     assert failed.status_code == 502 and "test-groq-secret" not in failed.text
+
+
+def test_provider_404_is_reported_as_gateway_failure_with_safe_stage(client, monkeypatch, caplog):
+    api, _ = client
+    configure(monkeypatch)
+    def rejected(request, timeout):
+        raise HTTPError(request.full_url, 404, "provider unavailable", {}, BytesIO(b'{}'))
+    monkeypatch.setattr(ai_service, "urlopen", rejected)
+    response = api.post("/api/assistant/chat", json={"message": "Tell me about KubASIE"})
+    assert response.status_code == 502
+    events = [record.event for record in caplog.records if getattr(record, "event", {}).get("stage")]
+    assert [event["stage"] for event in events] == [
+        "chat_request_received", "conversation_resolved", "provider_request_started",
+        "provider_request_completed", "chat_request_failed",
+    ]
+    assert events[-2]["provider_status"] == 404
+    assert events[-1]["status"] == 502
+    assert all("KubASIE" not in str(event) and "test-groq-secret" not in str(event) for event in events)

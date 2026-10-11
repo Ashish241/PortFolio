@@ -59,11 +59,14 @@ test(
     });
     (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
     // Resolve relative URLs only; all HTTP requests use Node's real fetch and real FastAPI routes.
-    const calls: { path: string; status: number }[] = [];
+    const calls: { path: string; status: number; conversation_id?: string | null }[] = [];
     globalThis.fetch = async (url, options) => {
       try {
         const response = await nativeFetch(new URL(String(url), base), options);
-        calls.push({ path: String(url), status: response.status });
+        const conversation_id = String(url).endsWith("/api/assistant/chat")
+          ? JSON.parse(options?.body as string).conversation_id
+          : undefined;
+        calls.push({ path: String(url), status: response.status, conversation_id });
         return response;
       } catch (error) {
         console.error("HTTP integration error", error, logs);
@@ -86,10 +89,37 @@ test(
           `Chat failed; calls=${JSON.stringify(calls)}; backend=${logs}; ${error}`,
         );
       });
-      assert.ok(chat.getByText(/Development: live AI is disabled/));
-      assert.ok(
-        calls.some((c) => c.path === "/api/assistant/chat" && c.status === 200),
-      );
+      assert.ok(chat.getByText(/ASSISTANT_MODE=grounded uses verified portfolio retrieval/));
+      const askFollowup = async (question: string, answer: RegExp) => {
+        fireEvent.change(chat.getByLabelText("Ask about Ashish’s professional profile"), { target: { value: question } });
+        fireEvent.click(chat.getByLabelText("Send question"));
+        await waitFor(() => assert.ok(chat.getByText(answer)), { timeout: 8000 });
+      };
+      await askFollowup("Does Ashish know Python?", /Python is listed in Ashish/);
+      await askFollowup("What about Docker?", /Docker is listed in Ashish/);
+      const furtherQuestions = [
+        "What is his Kubernetes experience?", "Which project demonstrates that?",
+        "Tell me more about that project.", "What role did FastAPI play?",
+        "Was Kubernetes involved?", "What is his backend experience?",
+        "What is his DevOps experience?", "What did he do during his internship?",
+        "What are his cloud skills?", "Tell me about KubASIE.",
+        "What technologies were used?", "How does that project work?",
+        "Tell me about kf-probe.", "What is his education?", "What is his CGPA?",
+        "What open-source work has he done?", "Why hire Ashish?",
+      ];
+      for (const question of furtherQuestions) {
+        const expected = chat.container.querySelectorAll(".chat-turn.assistant").length + 1;
+        fireEvent.change(chat.getByLabelText("Ask about Ashish’s professional profile"), { target: { value: question } });
+        fireEvent.click(chat.getByLabelText("Send question"));
+        await waitFor(() => assert.equal(chat.container.querySelectorAll(".chat-turn.assistant").length, expected), { timeout: 8000 });
+        assert.equal(chat.container.querySelectorAll(".chat-error").length, 0);
+      }
+      const chatCalls = calls.filter((c) => c.path === "/api/assistant/chat");
+      assert.equal(chatCalls.length, 20);
+      assert.ok(chatCalls.every((c) => c.status === 200));
+      assert.equal(chatCalls[0].conversation_id, null);
+      assert.ok(chatCalls[1].conversation_id);
+      assert.ok(chatCalls.slice(1).every((c) => c.conversation_id === chatCalls[1].conversation_id));
       cleanup();
       const contact = render(<ContactForm />);
       const fill = (subject: string) => {

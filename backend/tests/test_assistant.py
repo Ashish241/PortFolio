@@ -92,6 +92,32 @@ def test_technology_definition_only_when_requested(client):
     assert "listed in Ashish" in ask(api, "Does Ashish know Git?").json()["answer"]
 
 
+def test_hiring_question_answers_on_first_and_second_turn_without_provider(client, monkeypatch):
+    api, _ = client
+    settings = get_settings()
+    monkeypatch.setattr(settings, "assistant_mode", "auto")
+    monkeypatch.setattr(settings, "ai_api_key", "test-key")
+    monkeypatch.setattr(settings, "ai_model", "llama-3.1-8b-instant")
+
+    def unexpected_provider():
+        raise AssertionError("Hiring evidence should come from verified portfolio facts")
+
+    monkeypatch.setattr("app.services.ai_service.configured_provider", unexpected_provider)
+    first = ask(api, "Why hire Ashish?")
+    assert first.status_code == 200
+    first_reply = first.json()
+    assert first_reply["mode"] == "grounded"
+    assert "These verified examples" in first_reply["answer"]
+    assert "does not currently contain" not in first_reply["answer"]
+    assert any(source["id"] == "experience" for source in first_reply["sources"])
+
+    second = ask(api, "why hire Ashish?", first_reply["conversation_id"])
+    assert second.status_code == 200
+    second_reply = second.json()
+    assert second_reply["conversation_id"] == first_reply["conversation_id"]
+    assert second_reply["answer"] == first_reply["answer"]
+
+
 def test_no_unsupported_claims_and_scope_guard(client):
     api, _ = client
     for q in ["What is his salary?", "Does Ashish know Rust?", "Did he work at Google?", "What is his availability?"]:
@@ -144,21 +170,84 @@ def test_provider_valid_selection_and_timeout_fallback(client, monkeypatch):
     assert ask(api, "Tell me about KubASIE").status_code == 502
 
 
-def test_limits_and_conversation_ownership(client, monkeypatch):
+def test_limits_and_conversation_continuity_across_proxy_addresses(client, monkeypatch):
     api, engine = client
     settings = get_settings()
     monkeypatch.setattr(settings, "assistant_rate_limit", 3)
     monkeypatch.setattr(settings, "assistant_session_limit", 1)
     r = ask(api, "Tell me about Ashish").json()
     assert ask(api, "What is his GitHub?", r["conversation_id"]).status_code == 429
+    monkeypatch.setattr(settings, "assistant_session_limit", 2)
     with Session(engine) as db:
-        try: agent.chat(db, "Tell me about Ashish", r["conversation_id"], "another-client")
-        except Exception as e: assert e.status_code == 404
-        else: assert False, "Conversation must be bound to its visitor"
+        # A proxy may present a different client address on the next request.
+        # The opaque random conversation ID retains the same session; rate
+        # limits remain address-based and are checked independently.
+        resumed = agent.chat(db, "Tell me about Ashish", r["conversation_id"], "another-client")
+        assert resumed.conversation_id == r["conversation_id"]
+    monkeypatch.setattr(settings, "assistant_session_limit", 1)
     assert ask(api, "Tell me about Ashish").status_code == 200
     assert ask(api, "Tell me about Ashish").status_code == 429
     assert ask(api, "x" * 1001).status_code == 422
     assert ask(api, "ok", "not-a-uuid").status_code == 422
+
+
+def test_twenty_turns_survive_changing_proxy_addresses_and_clear(client, monkeypatch):
+    api, engine = client
+    monkeypatch.setattr(get_settings(), "assistant_rate_limit", 30)
+    questions = [
+        "Does Ashish know Python?", "What about Docker?", "What is his Kubernetes experience?",
+        "Which project demonstrates that?", "Tell me more about that project.",
+        "What role did FastAPI play?", "Was Kubernetes involved?", "What is his backend experience?",
+        "What is his DevOps experience?", "What did he do during his internship?",
+        "What are his cloud skills?", "Tell me about KubASIE.", "What technologies were used?",
+        "How does that project work?", "Tell me about kf-probe.", "What is his education?",
+        "What is his CGPA?", "What open-source work has he done?", "What is his GitHub?",
+        "Why hire Ashish?",
+    ]
+    conversation = None
+    for index, question in enumerate(questions):
+        with Session(engine) as db:
+            response = agent.chat(db, question, conversation, f"proxy-{index}")
+        assert response.answer
+        if index == 3:
+            assert any(source.id == "project:kubasie" for source in response.sources)
+        if index == 4:
+            assert any(source.id == "detail:kubasie" for source in response.sources)
+        if conversation:
+            assert response.conversation_id == conversation
+        conversation = response.conversation_id
+    assert agent._visits[conversation].turns == 20
+    assert len(agent._visits[conversation].history) <= 6
+    assert agent.clear(conversation, "another-proxy")["cleared"]
+    assert conversation not in agent._visits
+    fresh = ask(api, "Does Ashish know Docker?").json()
+    assert fresh["answer"] and fresh["conversation_id"] != conversation
+
+
+def test_expired_conversation_recovers_with_a_new_id(client, monkeypatch):
+    api, _ = client
+    first = ask(api, "Does Ashish know Python?").json()
+    monkeypatch.setattr(get_settings(), "assistant_session_ttl_seconds", 0)
+    agent._visits[first["conversation_id"]].updated -= 1
+    resumed = ask(api, "What about Docker?", first["conversation_id"])
+    assert resumed.status_code == 200
+    assert resumed.json()["answer"]
+    assert resumed.json()["conversation_id"] != first["conversation_id"]
+
+
+def test_chat_stage_logs_are_correlated_and_do_not_contain_questions(client, caplog):
+    api, _ = client
+    question = "Does Ashish know Python?"
+    response = ask(api, question)
+    assert response.status_code == 200
+    events = [record.event for record in caplog.records if getattr(record, "event", {}).get("stage")]
+    assert [event["stage"] for event in events] == [
+        "chat_request_received", "conversation_resolved", "chat_response_completed"
+    ]
+    assert len({event["request_id"] for event in events}) == 1
+    assert events[1]["conversation_lookup_succeeded"] is False
+    assert events[1]["conversation_message_count"] == 0
+    assert all(question not in str(event) for event in events)
 
 
 def test_resume_sync_updates_without_duplicate_or_lost_messages(client):

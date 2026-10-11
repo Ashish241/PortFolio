@@ -1,6 +1,8 @@
 """A bounded career assistant. Models select facts; they never author career claims.
 
 Memory is process-local, temporary and deliberately never written to the database.
+The random conversation ID is the temporary session capability: proxy client
+addresses can change between requests, so they cannot authenticate a session.
 Run one API worker for follow-up continuity, or add a TTL-only shared store before
 scaling workers. Database rate limits remain shared across workers.
 """
@@ -29,7 +31,6 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Visit:
-    owner: str
     updated: float
     turns: int = 0
     topic: str = "profile"
@@ -39,6 +40,27 @@ class Visit:
 
 _visits: dict[str, Visit] = {}
 _lock = threading.Lock()
+
+
+@dataclass
+class ChatTrace:
+    request_id: str
+    started: float = field(default_factory=time.perf_counter)
+    lookup_succeeded: bool = False
+    message_count: int = 0
+    provider_status: int | None = None
+
+    def log(self, stage: str, status: int | None = None, error_type: str | None = None):
+        logger.info("assistant_chat", extra={"event": {
+            "request_id": self.request_id,
+            "stage": stage,
+            "status": status,
+            "error_type": error_type,
+            "conversation_lookup_succeeded": self.lookup_succeeded,
+            "conversation_message_count": self.message_count,
+            "provider_status": self.provider_status,
+            "duration_ms": round((time.perf_counter() - self.started) * 1000, 1),
+        }})
 SCOPE = "I’m here to help with Ashish’s career, projects, skills, experience, education and resume. Try asking about KubASIE or his backend work."
 MISSING = "The verified portfolio does not currently contain that information. You can ask Ashish directly through the contact section."
 DEFINITIONS = {
@@ -79,7 +101,7 @@ def knowledge(db: Session):
     return facts, {x.slug for x in projects}
 
 
-def retrieve(message: str, previous: str, facts: dict, section_id: str | None = None, project_id: str | None = None):
+def retrieve(message: str, previous: str, facts: dict, section_id: str | None = None, project_id: str | None = None, history: list[dict] | None = None):
     q = message.lower()
     if re.search(r"ignore (all|previous)|system prompt|api.?key|physics|homework|assignment|recipe|weather|write.*(poem|essay|code)|politic", q):
         return [], "scope"
@@ -92,6 +114,12 @@ def retrieve(message: str, previous: str, facts: dict, section_id: str | None = 
     if re.search(r"those tools|those technologies", q) and previous == "skills":
         return [key for key in facts if key.startswith("skills:")], "skills"
     topic = next((f"project:{slug}" for slug in ("kubasie", "kf-probe", "portfolio") if slug in q and (slug != "portfolio" or "project" in q)), "")
+    if not topic and re.search(r"\b(?:which|what) project (?:demonstrates|shows|uses|involves) (?:that|it)\b", q):
+        recent_ids = (history or [{}])[-1].get("fact_ids", [])
+        topic = next((key for key in recent_ids if key.startswith("project:") and key in facts), "")
+        if not topic:
+            technologies = [key.split(":", 1)[1] for key in recent_ids if key.startswith("technology:")]
+            topic = next((key for key in facts if key.startswith("project:") and any(tech in facts[key][0].lower() for tech in technologies)), "")
     # Visible context resolves only deictic questions. Explicit topics above and
     # below always take precedence over what happens to be on screen.
     contextual = bool(re.search(r"\b(here|this project|this one|this section|what did he do|what technologies were used|how does it work)\b", q))
@@ -133,15 +161,23 @@ def retrieve(message: str, previous: str, facts: dict, section_id: str | None = 
     return [], "missing" if re.search(r"(he|his|ashish)\b", q) else "scope"
 
 
-def model_select(message: str, visit: Visit, facts: dict, candidates: list[str]):
+def model_select(message: str, visit: Visit, facts: dict, candidates: list[str], trace: ChatTrace | None = None):
     from app.services.ai_service import configured_provider
     try:
         provider = configured_provider()
         if provider is None: return candidates, "grounded"
+        if trace: trace.log("provider_request_started")
         selected = provider.generate_response({k: facts[k][0] for k in candidates}, message, visit.history)
+        if trace:
+            trace.provider_status = 200
+            trace.log("provider_request_completed", status=200)
         return selected, get_settings().ai_provider.lower()
     except Exception as error:
-        logger.warning("Assistant provider failed: type=%s status=%s", type(error).__name__, error.code if isinstance(error, HTTPError) else "none")
+        provider_status = error.code if isinstance(error, HTTPError) else None
+        if trace:
+            trace.provider_status = provider_status
+            trace.log("provider_request_completed", status=502, error_type=type(error).__name__)
+        logger.warning("Assistant provider failed: type=%s status=%s", type(error).__name__, provider_status if provider_status is not None else "none")
         raise HTTPException(502, "The AI provider could not answer. Please try again shortly or explore the portfolio directly.")
 
 
@@ -170,32 +206,38 @@ def owner_hash(ip: str):
     return hmac.new(get_settings().ip_hash_secret.encode(), ("assistant:" + ip).encode(), hashlib.sha256).hexdigest()
 
 
-def chat(db: Session, message: str, conversation_id: str | None, ip: str, section_id: str | None = None, project_id: str | None = None):
+def chat(db: Session, message: str, conversation_id: str | None, ip: str, section_id: str | None = None, project_id: str | None = None, trace: ChatTrace | None = None):
     s = get_settings()
     if s.assistant_mode != "grounded" and (not s.provider_api_key or not s.ai_model):
         raise HTTPException(503, f"Ask Spidey is not configured yet. The site owner must set {s.provider_key_name} on the backend.")
-    owner, now = owner_hash(ip), time.monotonic()
-    reserve_rate_limit(db, owner, s.assistant_rate_limit, s.assistant_window_seconds)
+    now = time.monotonic()
+    reserve_rate_limit(db, owner_hash(ip), s.assistant_rate_limit, s.assistant_window_seconds)
     db.commit()  # Reserve before any network cost, including provider errors.
     with _lock:
         for key in list(_visits):
             if now - _visits[key].updated > s.assistant_session_ttl_seconds and not _visits[key].busy: del _visits[key]
         visit = _visits.get(conversation_id or "")
-        if visit and visit.owner != owner: raise HTTPException(404, "Conversation unavailable")
+        if trace: trace.lookup_succeeded = visit is not None
         if not visit:
             if len(_visits) >= s.assistant_max_sessions: raise HTTPException(429, "The assistant is busy. Please try again shortly.")
             conversation_id = str(uuid.uuid4())
-            visit = _visits[conversation_id] = Visit(owner, now)
+            visit = _visits[conversation_id] = Visit(now)
+        if trace:
+            trace.message_count = visit.turns
+            trace.log("conversation_resolved")
         if visit.busy: raise HTTPException(409, "Please wait for the current answer.")
         if visit.turns >= s.assistant_session_limit: raise HTTPException(429, "This conversation has reached its limit. Please explore the portfolio directly.")
         visit.busy, visit.updated = True, now
         visit.turns += 1
     try:
         facts, slugs = knowledge(db)
-        ids, topic = retrieve(message, visit.topic, facts, section_id, project_id if project_id in slugs else None)
+        ids, topic = retrieve(message, visit.topic, facts, section_id, project_id if project_id in slugs else None, visit.history)
         mode = "grounded"
-        if ids and topic != "education" and not all(key.startswith("technology:") for key in ids):
-            ids, mode = model_select(message, visit, facts, ids)
+        # Hiring-fit questions already have bounded, verified evidence selected by
+        # retrieve(). A provider's empty selection must not hide those facts.
+        hiring_question = bool(re.search(r"\b(?:hire|suitable)\b", message.lower()))
+        if ids and topic != "education" and not hiring_question and not all(key.startswith("technology:") for key in ids):
+            ids, mode = model_select(message, visit, facts, ids, trace)
         answer = "\n\n".join(facts[k][0] for k in ids) if ids else (SCOPE if topic == "scope" else MISSING)
         if ids and re.search(r"^(what is|explain)\b", message.lower()) and not re.search(r"\b(ashish|he|his|experience|portfolio|project)\b", message.lower()):
             term = next((key.split(":", 1)[1] for key in ids if key.startswith("technology:")), None)
@@ -229,10 +271,9 @@ def chat(db: Session, message: str, conversation_id: str | None, ip: str, sectio
         with _lock: visit.busy, visit.updated = False, time.monotonic()
 
 
-def clear(conversation_id: str, ip: str):
+def clear(conversation_id: str, _ip: str):
     with _lock:
         visit = _visits.get(conversation_id)
-        if visit and visit.owner != owner_hash(ip): raise HTTPException(404, "Conversation unavailable")
         if visit and visit.busy: raise HTTPException(409, "Please wait for the current answer.")
         _visits.pop(conversation_id, None)
     return {"cleared": True}

@@ -44,6 +44,7 @@ app.add_middleware(CORSMiddleware, allow_origins=settings.origins, allow_credent
 @app.middleware("http")
 async def security_and_logging(request: Request, call_next):
     request_id = str(uuid.uuid4())
+    request.state.request_id = request_id
     started = time.perf_counter()
     # A proxy also enforces the limit; this check protects direct requests with known length.
     try:

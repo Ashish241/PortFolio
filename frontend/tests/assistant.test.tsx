@@ -258,3 +258,44 @@ test("older API receives explicit selected-project wording and renders its verif
     assert.equal(actions[0].target, "kubasie");
   } finally { cleanup(); globalThis.fetch = oldFetch; }
 });
+
+test("twenty consecutive replies render in one conversation and clear starts fresh", { timeout: 30000 }, async () => {
+  const oldFetch = globalThis.fetch;
+  const seen: Array<{ message: string; conversation_id: string | null }> = [];
+  const firstId = "00000000-0000-4000-a000-000000000001";
+  const nextId = "00000000-0000-4000-a000-000000000002";
+  let cleared = false;
+  globalThis.fetch = async (url, options) => {
+    const payload = JSON.parse(options?.body as string);
+    if (String(url).endsWith("/clear")) {
+      assert.equal(payload.conversation_id, firstId);
+      cleared = true;
+      return new Response('{"cleared":true}');
+    }
+    seen.push(payload);
+    return new Response(JSON.stringify({
+      conversation_id: cleared ? nextId : firstId,
+      answer: `Verified answer ${seen.length}`,
+      suggested_actions: [], sources: [], mode: "grounded",
+    }));
+  };
+  const view = render(<AssistantPanel open onClose={() => {}} onAction={() => {}} />);
+  try {
+    for (let index = 0; index < 20; index++) {
+      const question = `Question about Ashish ${index + 1}?`;
+      fireEvent.change(view.getByLabelText("Ask about Ashish’s professional profile"), { target: { value: question } });
+      fireEvent.click(view.getByLabelText("Send question"));
+      await waitFor(() => assert.ok(view.getByText(`Verified answer ${index + 1}`)));
+      assert.equal(view.getByLabelText("Send question").hasAttribute("disabled"), true, "empty input disables send after success");
+      assert.equal(seen[index].conversation_id, index ? firstId : null);
+    }
+    assert.equal(view.container.querySelectorAll(".chat-turn.assistant").length, 20);
+    fireEvent.click(view.getByText("Clear"));
+    await waitFor(() => assert.equal(cleared, true));
+    assert.equal(view.container.querySelectorAll(".chat-turn").length, 0);
+    fireEvent.change(view.getByLabelText("Ask about Ashish’s professional profile"), { target: { value: "Does he know Docker?" } });
+    fireEvent.click(view.getByLabelText("Send question"));
+    await waitFor(() => assert.ok(view.getByText("Verified answer 21")));
+    assert.equal(seen[20].conversation_id, null);
+  } finally { cleanup(); globalThis.fetch = oldFetch; }
+});
