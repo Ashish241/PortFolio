@@ -8,7 +8,7 @@ from app.schemas import ProjectOut, TechnologyOut, ExperienceOut, ContributionOu
 from app.services.portfolio import project_query, serialize_project, get_skills, get_experience
 from app.services.contact import store_contact, notify_new_contact
 from app.schemas import AssistantRequest, AssistantResponse
-from app.services.portfolio_agent import chat, clear
+from app.services.portfolio_agent import ChatTrace, chat, clear
 
 router = APIRouter(prefix="/api")
 DB = Annotated[Session, Depends(get_db)]
@@ -16,7 +16,18 @@ DB = Annotated[Session, Depends(get_db)]
 
 @router.post("/assistant/chat", response_model=AssistantResponse)
 def assistant_chat(payload: AssistantRequest, request: Request, db: DB):
-    return chat(db, payload.message, payload.conversation_id, request.client.host if request.client else "unknown", payload.section_id, payload.project_id)
+    trace = ChatTrace(request.state.request_id)
+    trace.log("chat_request_received")
+    try:
+        result = chat(db, payload.message, payload.conversation_id, request.client.host if request.client else "unknown", payload.section_id, payload.project_id, trace=trace)
+    except HTTPException as error:
+        trace.log("chat_request_failed", status=error.status_code, error_type=type(error).__name__)
+        raise
+    except Exception as error:
+        trace.log("chat_request_failed", status=500, error_type=type(error).__name__)
+        raise
+    trace.log("chat_response_completed", status=200)
+    return result
 
 
 @router.post("/assistant/clear")
