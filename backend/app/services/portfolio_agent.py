@@ -233,7 +233,10 @@ def chat(db: Session, message: str, conversation_id: str | None, ip: str, sectio
         facts, slugs = knowledge(db)
         ids, topic = retrieve(message, visit.topic, facts, section_id, project_id if project_id in slugs else None, visit.history)
         mode = "grounded"
-        if ids and topic != "education" and not all(key.startswith("technology:") for key in ids):
+        # Hiring-fit questions already have bounded, verified evidence selected by
+        # retrieve(). A provider's empty selection must not hide those facts.
+        hiring_question = bool(re.search(r"\b(?:hire|suitable)\b", message.lower()))
+        if ids and topic != "education" and not hiring_question and not all(key.startswith("technology:") for key in ids):
             ids, mode = model_select(message, visit, facts, ids, trace)
         answer = "\n\n".join(facts[k][0] for k in ids) if ids else (SCOPE if topic == "scope" else MISSING)
         if ids and re.search(r"^(what is|explain)\b", message.lower()) and not re.search(r"\b(ashish|he|his|experience|portfolio|project)\b", message.lower()):

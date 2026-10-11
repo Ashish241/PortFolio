@@ -92,6 +92,32 @@ def test_technology_definition_only_when_requested(client):
     assert "listed in Ashish" in ask(api, "Does Ashish know Git?").json()["answer"]
 
 
+def test_hiring_question_answers_on_first_and_second_turn_without_provider(client, monkeypatch):
+    api, _ = client
+    settings = get_settings()
+    monkeypatch.setattr(settings, "assistant_mode", "auto")
+    monkeypatch.setattr(settings, "ai_api_key", "test-key")
+    monkeypatch.setattr(settings, "ai_model", "llama-3.1-8b-instant")
+
+    def unexpected_provider():
+        raise AssertionError("Hiring evidence should come from verified portfolio facts")
+
+    monkeypatch.setattr("app.services.ai_service.configured_provider", unexpected_provider)
+    first = ask(api, "Why hire Ashish?")
+    assert first.status_code == 200
+    first_reply = first.json()
+    assert first_reply["mode"] == "grounded"
+    assert "These verified examples" in first_reply["answer"]
+    assert "does not currently contain" not in first_reply["answer"]
+    assert any(source["id"] == "experience" for source in first_reply["sources"])
+
+    second = ask(api, "why hire Ashish?", first_reply["conversation_id"])
+    assert second.status_code == 200
+    second_reply = second.json()
+    assert second_reply["conversation_id"] == first_reply["conversation_id"]
+    assert second_reply["answer"] == first_reply["answer"]
+
+
 def test_no_unsupported_claims_and_scope_guard(client):
     api, _ = client
     for q in ["What is his salary?", "Does Ashish know Rust?", "Did he work at Google?", "What is his availability?"]:
