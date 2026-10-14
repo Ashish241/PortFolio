@@ -1,6 +1,7 @@
 /** Supported motion only. The engine is the single authority for visible position. */
 import { safePath } from "./path";
 import { planTraversal, type TravelLeg } from "./planner";
+import { planClickSwing } from "./clickSwing";
 export type Pose =
   | "SWING_SHORT"
   | "SWING_LONG"
@@ -105,6 +106,8 @@ export interface Route {
   index: number;
   clock: number;
   swingReleaseIndex?: number;
+  click?: boolean;
+  ropeLength?: number;
 }
 const clamp = (n: number, l: number, h: number) => Math.max(l, Math.min(h, n));
 const dist = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -215,6 +218,29 @@ export class CompanionEngine {
     this.introDone = true;
     if (section) this.section = "";
     this.nextAction = 0;
+  }
+  startClickSwing(anchor: Target, input: MotionInput) {
+    if (!this.initialized || !this.supportAnchor || this.route || this.navbarMode || input.mobile || input.reduced || input.scrolling || input.ai !== "closed") return false;
+    const leg = planClickSwing(this.position, anchor, input);
+    if (!leg) return false;
+    this.introDone = true;
+    this.startLeg(leg);
+    this.route!.click = true;
+    this.route!.ropeLength = dist(this.position, anchor.attachment);
+    this.navigationTarget = leg.target;
+    this.nextAction = this.idleTime + 8;
+    this.trace("CLICK_WEB");
+    return true;
+  }
+  cancelClickSwing() {
+    if (!this.route?.click) return;
+    this.route = null;
+    this.remainingRoute = [];
+    this.web.visible = false;
+    this.activeWebAnchor = null;
+    this.suspended = false;
+    this.routeAttemptAfter = 0;
+    this.trace("CLICK_WEB_CANCEL");
   }
   private valid(t: Target) {
     return t.verified && t.visibility > 0.25;
@@ -695,6 +721,19 @@ export class CompanionEngine {
             this.position.x += this.velocity.x * dt;
             this.position.y += this.velocity.y * dt;
           } else this.move(waypoint, dt, i);
+          if (swinging && r.click && anchor && r.ropeLength) {
+            const dx = this.position.x - anchor.x,
+              dy = this.position.y - anchor.y,
+              radius = Math.hypot(dx, dy);
+            if (radius > 0.001) {
+              const scale = r.ropeLength / radius;
+              this.position.x = anchor.x + dx * scale;
+              this.position.y = anchor.y + dy * scale;
+              const radial = (this.velocity.x * dx + this.velocity.y * dy) / (radius * radius);
+              this.velocity.x -= radial * dx;
+              this.velocity.y -= radial * dy;
+            }
+          }
           r.progress = Math.max(
             r.progress,
             clamp((r.clock - 0.4) / r.duration, 0, 0.99),

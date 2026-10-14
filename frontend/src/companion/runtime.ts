@@ -1,5 +1,7 @@
 import { AnchorManager } from "../three/AnchorManager";
-import { CompanionEngine, type MotionInput } from "./engine";
+import { CompanionEngine, type MotionInput, type Point, type Target } from "./engine";
+import { eligibleWebClick } from "./clickSwing";
+import { ImpactWeb } from "./impactWeb";
 import { companionEvents, NAV_ITEMS } from "./events";
 // Renderer changes reuse motion state; resize never becomes a visible relocation.
 let rememberedEngine: CompanionEngine | null = null;
@@ -25,6 +27,23 @@ export class CompanionRuntime {
   private replayButton: HTMLButtonElement | null = null;
   private shoulderUsed = false;
   private lastCtaReaction = -10;
+  private pointerStart: Point | null = null;
+  private pendingClick: { anchor: Target; impact: ImpactWeb; expiresAt: number } | null = null;
+  private activeClick: { anchor: Target; impact: ImpactWeb } | null = null;
+  private travelImpact: ImpactWeb | null = null;
+  private clickSerial = 0;
+  private pointerDown = (event: PointerEvent) => {
+    this.pointerStart = event.pointerType === "mouse" && event.button === 0
+      ? { x: event.clientX, y: event.clientY } : null;
+  };
+  private cancelClick = () => {
+    this.pendingClick?.impact.release();
+    this.pendingClick = null;
+    if (!this.activeClick) return;
+    this.engine.cancelClickSwing();
+    this.activeClick.impact.release();
+    this.activeClick = null;
+  };
   private pointer = (e: PointerEvent) => {
     if (e.pointerType === "mouse") {
       this.cursor = { x: e.clientX, y: e.clientY };
@@ -32,6 +51,7 @@ export class CompanionRuntime {
     }
   };
   private scroll = () => {
+    this.cancelClick();
     const now = performance.now() / 1000,
       dy = window.scrollY - this.scrollY;
     this.scrollVelocity = dy / Math.max(0.016, now - this.scrollTime);
@@ -47,6 +67,26 @@ export class CompanionRuntime {
         type: "USER_NAVIGATE",
         section: link.hash.slice(1),
       });
+    if (this.pointerStart &&
+      Math.hypot(e.clientX - this.pointerStart.x, e.clientY - this.pointerStart.y) <= 8 &&
+      performance.now() / 1000 - this.scrollAt > 0.35 &&
+      !this.activeClick && !this.pendingClick &&
+      eligibleWebClick(e, this.mobile, this.reduced)) {
+      const point = { x: e.clientX, y: e.clientY };
+      const length = Math.hypot(point.x - this.engine.position.x, point.y - this.engine.position.y);
+      if (this.engine.initialized && point.y < this.engine.position.y - 35 && length >= 90 && length <= 520) {
+        const anchor: Target = {
+          id: `click-web-${++this.clickSerial}`, objectId: "click-impact",
+          section: this.section, elementType: "click-impact", roles: ["WEB_ANCHOR"],
+          attachment: point, ...point, verified: true, poses: ["SWING_SHORT"],
+          priority: 9, visibility: 1, mobileEnabled: false,
+          offset: { x: 0, y: 0 }, width: 88, height: 88,
+        };
+        this.pendingClick = { anchor, impact: new ImpactWeb(point, this.reduced), expiresAt: performance.now() / 1000 + 5 };
+        this.pendingClick.impact.element.classList.add("interactive");
+      }
+    }
+    this.pointerStart = null;
   };
   private hover = (e: PointerEvent) => {
     const target = (e.target as Element)?.closest(".hero-buttons,.project-card,.featured-project");
@@ -65,6 +105,8 @@ export class CompanionRuntime {
     if (!mobile && !reduced)
       window.addEventListener("pointermove", this.pointer, { passive: true });
     window.addEventListener("scroll", this.scroll, { passive: true });
+    window.addEventListener("resize", this.cancelClick);
+    document.addEventListener("pointerdown", this.pointerDown, { passive: true });
     document.addEventListener("click", this.click);
     document.addEventListener("pointerover", this.hover, { passive: true });
     this.observer = new IntersectionObserver(
@@ -88,9 +130,11 @@ export class CompanionRuntime {
       if (e.type === "SPIDEY_CLICK" || e.type === "CTA_HOVER")
         this.engine.userAction(performance.now() / 1000);
       if (e.type === "USER_NAVIGATE") {
+        this.cancelClick();
         this.section = e.section ?? this.section;
         this.engine.navigate(this.section);
       }
+      if (e.type === "AI_OPEN" || e.type === "HIDE_SPIDEY") this.cancelClick();
       if (e.type.startsWith("AI_"))
         window.dispatchEvent(new Event("companion-layout"));
     });
@@ -176,16 +220,39 @@ export class CompanionRuntime {
         ),
     };
     if (input.navbar) input.targets.push(input.navbar);
+    if (this.pendingClick) {
+      const pending = this.pendingClick;
+      if (now >= pending.expiresAt) {
+        pending.impact.release();
+        this.pendingClick = null;
+      } else if (this.engine.supportAnchor && !this.engine.route) {
+        input.targets.push(pending.anchor);
+        if (this.engine.startClickSwing(pending.anchor, input))
+          this.activeClick = { anchor: pending.anchor, impact: pending.impact };
+        else pending.impact.release();
+        this.pendingClick = null;
+        if (!this.activeClick) input.targets.pop();
+      }
+    }
+    if (this.activeClick && !input.targets.some(t => t.id === this.activeClick?.anchor.id))
+      input.targets.push(this.activeClick.anchor);
     const before = { ...this.engine.position },
       oldWeb =
         this.engine.web.extension === 1 ? this.engine.activeWebAnchor : null,
       oldSupport = this.engine.supportAnchor?.id,
       initialized = this.engine.initialized;
     this.engine.tick(dt, input);
+    if (this.activeClick && !this.engine.route?.click) {
+      this.activeClick.impact.release();
+      this.activeClick = null;
+    }
     const newWeb =
       this.engine.web.extension === 1 ? this.engine.activeWebAnchor : null;
     if (newWeb?.id !== oldWeb?.id) {
       if (oldWeb) this.anchors.play(oldWeb, this.engine.velocity, "release");
+      if (oldWeb?.id.startsWith("click-web-")) this.activeClick?.impact.release();
+      this.travelImpact?.release();
+      this.travelImpact = null;
       if (newWeb)
         this.anchors.play(
           newWeb,
@@ -195,7 +262,13 @@ export class CompanionRuntime {
           },
           "tension",
         );
+      if (newWeb && !newWeb.id.startsWith("click-web-")) {
+        this.travelImpact = new ImpactWeb(newWeb.attachment, this.reduced);
+        if (newWeb.elementType === "navbar" || newWeb.elementType === "heading")
+          this.travelImpact.element.classList.add("subtle");
+      }
     }
+    if (newWeb && this.travelImpact) this.travelImpact.move(newWeb.attachment);
     if (this.engine.introDone) sessionStorage.setItem("spidey-intro", "true");
     companionEvents.safeForAssistant(
       (this.engine.suspended && this.engine.web.extension === 1) ||
@@ -337,6 +410,13 @@ export class CompanionRuntime {
     return { engine: this.engine, visible };
   }
   dispose() {
+    this.pendingClick?.impact.dispose();
+    this.pendingClick = null;
+    this.engine.cancelClickSwing();
+    this.activeClick?.impact.dispose();
+    this.activeClick = null;
+    this.travelImpact?.dispose();
+    this.travelImpact = null;
     rememberedEngine = this.engine;
     this.unsubscribe();
     this.releaseRuntime();
@@ -349,6 +429,8 @@ export class CompanionRuntime {
       .forEach((e) => e.remove());
     window.removeEventListener("pointermove", this.pointer);
     window.removeEventListener("scroll", this.scroll);
+    window.removeEventListener("resize", this.cancelClick);
+    document.removeEventListener("pointerdown", this.pointerDown);
     document.removeEventListener("click", this.click);
     document.removeEventListener("pointerover", this.hover);
   }

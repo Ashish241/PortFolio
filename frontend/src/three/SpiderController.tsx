@@ -235,7 +235,7 @@ export function SpiderController({
   });
   return (
     <>
-      <WebLineController {...web} update={webUpdate} />
+      <WebLineController {...web} mobile={mobile} update={webUpdate} />
       <group ref={root} visible={false}>
         <CharacterModel
           head={head}
