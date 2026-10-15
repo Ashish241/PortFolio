@@ -82,7 +82,7 @@ test("click traversal declines during chat, scrolling, mobile and reduced motion
     assert.equal(engine.startClickSwing(click, input(blocked)), false);
   assert.equal(engine.startClickSwing(click, input()), true);
   assert.equal(engine.route?.click, true);
-  assert.equal(engine.startClickSwing(click, input()), false);
+  assert.equal(engine.startClickSwing(click, input()), true);
   engine.cancelClickSwing();
   assert.equal(engine.route, null);
   assert.equal(engine.web.visible, false);
@@ -108,3 +108,4 @@ test("decorative clicks never take priority over controls or touch", () => {
     dom.window.close();
   }
 });
+

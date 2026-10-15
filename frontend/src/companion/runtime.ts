@@ -70,7 +70,6 @@ export class CompanionRuntime {
     if (this.pointerStart &&
       Math.hypot(e.clientX - this.pointerStart.x, e.clientY - this.pointerStart.y) <= 8 &&
       performance.now() / 1000 - this.scrollAt > 0.35 &&
-      !this.activeClick && !this.pendingClick &&
       eligibleWebClick(e, this.mobile, this.reduced)) {
       const point = { x: e.clientX, y: e.clientY };
       const length = Math.hypot(point.x - this.engine.position.x, point.y - this.engine.position.y);
@@ -82,6 +81,9 @@ export class CompanionRuntime {
           priority: 9, visibility: 1, mobileEnabled: false,
           offset: { x: 0, y: 0 }, width: 88, height: 88,
         };
+        this.pendingClick?.impact.release();
+        this.activeClick?.impact.release();
+        this.activeClick = null;
         this.pendingClick = { anchor, impact: new ImpactWeb(point, this.reduced), expiresAt: performance.now() / 1000 + 5 };
         this.pendingClick.impact.element.classList.add("interactive");
       }
@@ -225,7 +227,7 @@ export class CompanionRuntime {
       if (now >= pending.expiresAt) {
         pending.impact.release();
         this.pendingClick = null;
-      } else if (this.engine.supportAnchor && !this.engine.route) {
+      } else if (this.engine.supportAnchor) {
         input.targets.push(pending.anchor);
         if (this.engine.startClickSwing(pending.anchor, input))
           this.activeClick = { anchor: pending.anchor, impact: pending.impact };

@@ -220,9 +220,13 @@ export class CompanionEngine {
     this.nextAction = 0;
   }
   startClickSwing(anchor: Target, input: MotionInput) {
-    if (!this.initialized || !this.supportAnchor || this.route || this.navbarMode || input.mobile || input.reduced || input.scrolling || input.ai !== "closed") return false;
+    if (!this.initialized || !this.supportAnchor || this.navbarMode || input.mobile || input.reduced || input.scrolling || input.ai !== "closed") return false;
     const leg = planClickSwing(this.position, anchor, input);
     if (!leg) return false;
+    this.route = null;
+    this.remainingRoute = [];
+    this.web.visible = false;
+    this.activeWebAnchor = null;
     this.introDone = true;
     this.startLeg(leg);
     this.route!.click = true;

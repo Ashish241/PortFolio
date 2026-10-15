@@ -1,4 +1,3 @@
-import { safePath } from "./path";
 import { supportedPosition, type MotionInput, type Point, type Target } from "./engine";
 import type { TravelLeg } from "./planner";
 
@@ -28,7 +27,7 @@ export function planClickSwing(from: Point, anchor: Target, input: MotionInput):
   for (const target of candidates) {
     const end = supportedPosition(target, input.mobile);
     if (!input.safe(end, target.elementType === "shoulder")) continue;
-    const direction = Math.sign(end.x - from.x) || Math.sign(anchor.x - from.x) || 1;
+    const direction = Math.sign(anchor.x - from.x) || Math.sign(end.x - from.x) || 1;
     const final = clamp(initial + direction * 0.95, -1.15, 1.15);
     if (Math.abs(final - initial) < 0.32) continue;
     const swing = Array.from({ length: 25 }, (_, index) => {
@@ -49,13 +48,6 @@ export function planClickSwing(from: Point, anchor: Target, input: MotionInput):
       pose: "SWING_SHORT", steps: ["AIM", "WEB_SHOOT", "ATTACH", "SWING", "RELEASE", "LAND"],
       duration: 2.2, swingReleaseIndex: swing.length - 1,
     };
-  }
-  // A tight page can still use the clicked web for a short supported pull.
-  for (const target of candidates) {
-    const end = supportedPosition(target, input.mobile);
-    const path = safePath(from, end, input.width, input.height, input.safe);
-    if (path && path.length > 1)
-      return { target, path, webId: anchor.id, pose: "WEB_PULL", steps: ["AIM", "WEB_SHOOT", "ATTACH", "WEB_PULL", "LAND"], duration: clamp(distance(from, end) / 240, 0.9, 2.8) };
   }
   return null;
 }
