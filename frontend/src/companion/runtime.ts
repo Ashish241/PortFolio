@@ -32,6 +32,9 @@ export class CompanionRuntime {
   private activeClick: { anchor: Target; impact: ImpactWeb } | null = null;
   private travelImpact: ImpactWeb | null = null;
   private clickSerial = 0;
+  private clickTrace: Record<string, unknown> = {};
+  private clickAt = 0;
+  private diagnostic: HTMLElement | null = null;
   private pointerDown = (event: PointerEvent) => {
     this.pointerStart = event.pointerType === "mouse" && event.button === 0
       ? { x: event.clientX, y: event.clientY } : null;
@@ -59,6 +62,8 @@ export class CompanionRuntime {
     this.scrollTime = this.scrollAt = now;
   };
   private click = (e: MouseEvent) => {
+    this.clickAt = performance.now();
+    this.clickTrace = { detected: true, coordinates: { x: e.clientX, y: e.clientY }, previousState: this.engine.state, previousController: this.engine.route ? "route" : "support", accepted: false, reason: "excluded control, drag, scroll, mobile or unavailable target" };
     const link = (e.target as Element)?.closest<HTMLAnchorElement>(
       'a[href^="#"]',
     );
@@ -84,6 +89,7 @@ export class CompanionRuntime {
         this.pendingClick?.impact.release();
         this.activeClick?.impact.release();
         this.activeClick = null;
+        this.clickTrace.reason = "awaiting next runtime frame";
         this.pendingClick = { anchor, impact: new ImpactWeb(point, this.reduced), expiresAt: performance.now() / 1000 + 5 };
         this.pendingClick.impact.element.classList.add("interactive");
       }
@@ -221,16 +227,24 @@ export class CompanionRuntime {
           companionEvents.ai !== "closed" || !!document.querySelector(".assistant-panel"),
         ),
     };
+    if ((import.meta.env?.DEV || import.meta.env?.VITE_SPIDEY_DIAGNOSTICS === "enabled") && new URLSearchParams(location.search).has("webDebug") && !this.diagnostic) {
+      this.diagnostic = document.createElement("pre");
+      this.diagnostic.id = "web-runtime-diagnostics";
+      this.diagnostic.style.cssText = "position:fixed;right:8px;top:90px;z-index:9999;max-width:420px;max-height:65vh;overflow:auto;pointer-events:none;background:#07101feb;color:#b9f8db;font:11px monospace;padding:12px";
+      document.body.append(this.diagnostic);
+    }
     if (input.navbar) input.targets.push(input.navbar);
     if (this.pendingClick) {
       const pending = this.pendingClick;
       if (now >= pending.expiresAt) {
         pending.impact.release();
         this.pendingClick = null;
-      } else if (this.engine.supportAnchor) {
+      } else {
         input.targets.push(pending.anchor);
-        if (this.engine.startClickSwing(pending.anchor, input))
-          this.activeClick = { anchor: pending.anchor, impact: pending.impact };
+        const previousRoute = this.engine.route;
+        const accepted = this.engine.startClickSwing(pending.anchor, input);
+        Object.assign(this.clickTrace, { accepted, reason: accepted ? "executed" : "no safe constrained trajectory or higher priority state", interrupted: accepted && !!previousRoute, aimMs: accepted ? performance.now() - this.clickAt : null });
+        if (accepted) this.activeClick = { anchor: pending.anchor, impact: pending.impact };
         else pending.impact.release();
         this.pendingClick = null;
         if (!this.activeClick) input.targets.pop();
@@ -248,6 +262,9 @@ export class CompanionRuntime {
       this.activeClick.impact.release();
       this.activeClick = null;
     }
+    if (this.activeClick && this.engine.web.visible && this.clickTrace.webMs === undefined)
+      this.clickTrace.webMs = performance.now() - this.clickAt;
+    if (this.diagnostic) this.diagnostic.textContent = JSON.stringify({ ...this.clickTrace, state: this.engine.state, controller: this.engine.route?.click ? "user click" : this.engine.route ? "autonomous route" : "support/recovery", position: this.engine.position, velocity: this.engine.velocity, direction: Math.sign(this.engine.velocity.x), anchor: this.engine.web.visible ? this.engine.web.anchor : null, landing: this.engine.route?.target.id, phase: this.engine.route?.phase, completed: !this.engine.route && !!this.engine.supportAnchor }, null, 2);
     const newWeb =
       this.engine.web.extension === 1 ? this.engine.activeWebAnchor : null;
     if (newWeb?.id !== oldWeb?.id) {
@@ -425,6 +442,7 @@ export class CompanionRuntime {
     this.observer.disconnect();
     this.anchors.dispose();
     this.debug?.remove();
+    this.diagnostic?.remove();
     this.replayButton?.remove();
     document
       .querySelectorAll(".companion-anchor-debug")

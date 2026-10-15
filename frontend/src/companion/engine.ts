@@ -220,7 +220,7 @@ export class CompanionEngine {
     this.nextAction = 0;
   }
   startClickSwing(anchor: Target, input: MotionInput) {
-    if (!this.initialized || !this.supportAnchor || this.navbarMode || input.mobile || input.reduced || input.scrolling || input.ai !== "closed") return false;
+    if (!this.initialized || this.navbarMode || input.mobile || input.reduced || input.scrolling || input.ai !== "closed") return false;
     const leg = planClickSwing(this.position, anchor, input);
     if (!leg) return false;
     this.route = null;
@@ -639,8 +639,8 @@ export class CompanionEngine {
           r.phase =
             r.clock < 0.12 ? "aim" : r.clock < 0.34 ? "shoot" : "attach";
           this.state = this.supportAnchor ? "CROUCHING" : "JUMPING";
-          this.look.x = clamp((t.x - this.position.x) / 280, -0.55, 0.55);
-          this.look.y = clamp((t.y - this.position.y) / 340, -0.35, 0.35);
+          this.look.x = clamp(((anchor?.attachment.x ?? t.x) - this.position.x) / 280, -0.55, 0.55);
+          this.look.y = clamp(((anchor?.attachment.y ?? t.y) - this.position.y) / 340, -0.35, 0.35);
           if (!this.supportAnchor && !this.activeWebAnchor) {
             this.airborne(dt, i);
           }
@@ -724,25 +724,33 @@ export class CompanionEngine {
             };
             this.position.x += this.velocity.x * dt;
             this.position.y += this.velocity.y * dt;
-          } else this.move(waypoint, dt, i);
-          if (swinging && r.click && anchor && r.ropeLength) {
-            const dx = this.position.x - anchor.x,
-              dy = this.position.y - anchor.y,
-              radius = Math.hypot(dx, dy);
-            if (radius > 0.001) {
-              const scale = r.ropeLength / radius;
-              this.position.x = anchor.x + dx * scale;
-              this.position.y = anchor.y + dy * scale;
-              const radial = (this.velocity.x * dx + this.velocity.y * dy) / (radius * radius);
-              this.velocity.x -= radial * dx;
-              this.velocity.y -= radial * dy;
+          } else if (swinging && r.click && anchor && r.ropeLength) {
+            // One force owner: a unilateral elastic rope can pull, never push.
+            // Substeps keep attachment engagement stable without position projection.
+            const steps = Math.ceil(dt / 0.004), h = dt / steps;
+            for (let step = 0; step < steps; step++) {
+              const dx = this.position.x - anchor.attachment.x;
+              const dy = this.position.y - anchor.attachment.y;
+              const radius = Math.max(1, Math.hypot(dx, dy));
+              const nx = dx / radius, ny = dy / radius;
+              const outward = this.velocity.x * nx + this.velocity.y * ny;
+              const extension = Math.max(0, radius - r.ropeLength);
+              const engagement = clamp((r.clock - 0.4) / 0.18, 0, 1);
+              const tension = extension > 0 ? Math.max(0, 90 * extension + 18 * outward) * engagement : 0;
+              const direction = Math.sign(anchor.attachment.x - r.from.x) || 1;
+              const pump = 120 * direction;
+              this.velocity.x += (-nx * tension + ny * pump) * h;
+              this.velocity.y += (500 - ny * tension - nx * pump) * h;
+              this.position.x += this.velocity.x * h;
+              this.position.y += this.velocity.y * h;
             }
-          }
+            if (r.clock > 0.4 + r.duration * 0.6) r.index = r.swingReleaseIndex! + 1;
+          } else this.move(waypoint, dt, i);
           r.progress = Math.max(
             r.progress,
             clamp((r.clock - 0.4) / r.duration, 0, 0.99),
           );
-          if (dist(this.position, waypoint) < 1) {
+          if (!(swinging && r.click) && dist(this.position, waypoint) < 1) {
             r.index++;
             r.progress = (r.index - 1) / (r.path.length - 1);
           }
