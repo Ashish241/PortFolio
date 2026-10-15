@@ -74,9 +74,37 @@
 .spider-stage {
   transition: opacity 0.18s;
 }
+.spidey-impact-web {
+  position: fixed;
+  z-index: 11;
+  width: 88px;
+  height: 88px;
+  overflow: visible;
+  pointer-events: none;
+  opacity: 0.88;
+  transform: translate(-50%, -50%) scale(1);
+  transform-origin: center;
+  filter: drop-shadow(0 0 3px #c6e8ff55);
+  animation: spidey-impact-form 250ms cubic-bezier(.2,.8,.2,1) both;
+}
+.spidey-impact-web.releasing {
+  opacity: 0;
+  animation: none;
+  transition: opacity 220ms ease-out;
+}
+.spidey-impact-web.subtle { width: 48px; height: 48px; opacity: .55; }
+.spidey-impact-web.reduced { animation: none; }
+@keyframes spidey-impact-form {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(.12); }
+  to { opacity: .88; transform: translate(-50%, -50%) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spidey-impact-web { animation: none; }
+}
 .spidey-hiding .spider-stage,
 .spidey-hiding .spider-react,
-.spidey-hiding .spider-fallback {
+.spidey-hiding .spider-fallback,
+.spidey-hiding .spidey-impact-web {
   opacity: 0 !important;
   pointer-events: none !important;
 }
@@ -603,3 +631,5 @@
 .education-timeline em { color: #ff9ead; font-size: 11px; font-style: normal; }
 @keyframes timeline-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .education-timeline li { animation: none; } }
+
+.spidey-impact-web.decorative { width:57.2px; height:57.2px; }

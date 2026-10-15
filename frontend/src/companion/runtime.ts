@@ -1,5 +1,7 @@
 import { AnchorManager } from "../three/AnchorManager";
-import { CompanionEngine, type MotionInput } from "./engine";
+import { CompanionEngine, type MotionInput, type Point, type Target } from "./engine";
+import { eligibleWebClick } from "./decorativeWeb";
+import { ImpactWeb } from "./impactWeb";
 import { companionEvents, NAV_ITEMS } from "./events";
 // Renderer changes reuse motion state; resize never becomes a visible relocation.
 let rememberedEngine: CompanionEngine | null = null;
@@ -25,6 +27,12 @@ export class CompanionRuntime {
   private replayButton: HTMLButtonElement | null = null;
   private shoulderUsed = false;
   private lastCtaReaction = -10;
+  private pointerStart: Point | null = null;
+  private travelImpact: ImpactWeb | null = null;
+  private pointerDown = (event: PointerEvent) => {
+    this.pointerStart = event.pointerType === "mouse" && event.button === 0
+      ? { x: event.clientX, y: event.clientY } : null;
+  };
   private pointer = (e: PointerEvent) => {
     if (e.pointerType === "mouse") {
       this.cursor = { x: e.clientX, y: e.clientY };
@@ -47,6 +55,15 @@ export class CompanionRuntime {
         type: "USER_NAVIGATE",
         section: link.hash.slice(1),
       });
+    if (this.pointerStart &&
+      Math.hypot(e.clientX - this.pointerStart.x, e.clientY - this.pointerStart.y) <= 8 &&
+      performance.now() / 1000 - this.scrollAt > 0.35 &&
+      eligibleWebClick(e, this.mobile, this.reduced)) {
+      const impact = new ImpactWeb({ x: e.clientX, y: e.clientY }, this.reduced);
+      impact.element.classList.add("decorative");
+      window.setTimeout(() => impact.release(), 650);
+    }
+    this.pointerStart = null;
   };
   private hover = (e: PointerEvent) => {
     const target = (e.target as Element)?.closest(".hero-buttons,.project-card,.featured-project");
@@ -65,6 +82,7 @@ export class CompanionRuntime {
     if (!mobile && !reduced)
       window.addEventListener("pointermove", this.pointer, { passive: true });
     window.addEventListener("scroll", this.scroll, { passive: true });
+    document.addEventListener("pointerdown", this.pointerDown, { passive: true });
     document.addEventListener("click", this.click);
     document.addEventListener("pointerover", this.hover, { passive: true });
     this.observer = new IntersectionObserver(
@@ -88,7 +106,7 @@ export class CompanionRuntime {
       if (e.type === "SPIDEY_CLICK" || e.type === "CTA_HOVER")
         this.engine.userAction(performance.now() / 1000);
       if (e.type === "USER_NAVIGATE") {
-        this.section = e.section ?? this.section;
+            this.section = e.section ?? this.section;
         this.engine.navigate(this.section);
       }
       if (e.type.startsWith("AI_"))
@@ -186,6 +204,8 @@ export class CompanionRuntime {
       this.engine.web.extension === 1 ? this.engine.activeWebAnchor : null;
     if (newWeb?.id !== oldWeb?.id) {
       if (oldWeb) this.anchors.play(oldWeb, this.engine.velocity, "release");
+      this.travelImpact?.release();
+      this.travelImpact = null;
       if (newWeb)
         this.anchors.play(
           newWeb,
@@ -195,7 +215,13 @@ export class CompanionRuntime {
           },
           "tension",
         );
+      if (newWeb) {
+        this.travelImpact = new ImpactWeb(newWeb.attachment, this.reduced);
+        if (newWeb.elementType === "navbar" || newWeb.elementType === "heading")
+          this.travelImpact.element.classList.add("subtle");
+      }
     }
+    if (newWeb && this.travelImpact) this.travelImpact.move(newWeb.attachment);
     if (this.engine.introDone) sessionStorage.setItem("spidey-intro", "true");
     companionEvents.safeForAssistant(
       (this.engine.suspended && this.engine.web.extension === 1) ||
@@ -337,6 +363,8 @@ export class CompanionRuntime {
     return { engine: this.engine, visible };
   }
   dispose() {
+    this.travelImpact?.dispose();
+    this.travelImpact = null;
     rememberedEngine = this.engine;
     this.unsubscribe();
     this.releaseRuntime();
@@ -349,6 +377,7 @@ export class CompanionRuntime {
       .forEach((e) => e.remove());
     window.removeEventListener("pointermove", this.pointer);
     window.removeEventListener("scroll", this.scroll);
+    document.removeEventListener("pointerdown", this.pointerDown);
     document.removeEventListener("click", this.click);
     document.removeEventListener("pointerover", this.hover);
   }

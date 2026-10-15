@@ -609,8 +609,8 @@ export class CompanionEngine {
           r.phase =
             r.clock < 0.12 ? "aim" : r.clock < 0.34 ? "shoot" : "attach";
           this.state = this.supportAnchor ? "CROUCHING" : "JUMPING";
-          this.look.x = clamp((t.x - this.position.x) / 280, -0.55, 0.55);
-          this.look.y = clamp((t.y - this.position.y) / 340, -0.35, 0.35);
+          this.look.x = clamp(((anchor?.attachment.x ?? t.x) - this.position.x) / 280, -0.55, 0.55);
+          this.look.y = clamp(((anchor?.attachment.y ?? t.y) - this.position.y) / 340, -0.35, 0.35);
           if (!this.supportAnchor && !this.activeWebAnchor) {
             this.airborne(dt, i);
           }
