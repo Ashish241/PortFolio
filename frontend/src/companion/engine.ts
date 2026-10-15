@@ -1,7 +1,6 @@
 /** Supported motion only. The engine is the single authority for visible position. */
 import { safePath } from "./path";
 import { planTraversal, type TravelLeg } from "./planner";
-import { planClickSwing } from "./clickSwing";
 export type Pose =
   | "SWING_SHORT"
   | "SWING_LONG"
@@ -106,8 +105,6 @@ export interface Route {
   index: number;
   clock: number;
   swingReleaseIndex?: number;
-  click?: boolean;
-  ropeLength?: number;
 }
 const clamp = (n: number, l: number, h: number) => Math.max(l, Math.min(h, n));
 const dist = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -218,33 +215,6 @@ export class CompanionEngine {
     this.introDone = true;
     if (section) this.section = "";
     this.nextAction = 0;
-  }
-  startClickSwing(anchor: Target, input: MotionInput) {
-    if (!this.initialized || this.navbarMode || input.mobile || input.reduced || input.scrolling || input.ai !== "closed") return false;
-    const leg = planClickSwing(this.position, anchor, input);
-    if (!leg) return false;
-    this.route = null;
-    this.remainingRoute = [];
-    this.web.visible = false;
-    this.activeWebAnchor = null;
-    this.introDone = true;
-    this.startLeg(leg);
-    this.route!.click = true;
-    this.route!.ropeLength = dist(this.position, anchor.attachment);
-    this.navigationTarget = leg.target;
-    this.nextAction = this.idleTime + 8;
-    this.trace("CLICK_WEB");
-    return true;
-  }
-  cancelClickSwing() {
-    if (!this.route?.click) return;
-    this.route = null;
-    this.remainingRoute = [];
-    this.web.visible = false;
-    this.activeWebAnchor = null;
-    this.suspended = false;
-    this.routeAttemptAfter = 0;
-    this.trace("CLICK_WEB_CANCEL");
   }
   private valid(t: Target) {
     return t.verified && t.visibility > 0.25;
@@ -724,33 +694,12 @@ export class CompanionEngine {
             };
             this.position.x += this.velocity.x * dt;
             this.position.y += this.velocity.y * dt;
-          } else if (swinging && r.click && anchor && r.ropeLength) {
-            // One force owner: a unilateral elastic rope can pull, never push.
-            // Substeps keep attachment engagement stable without position projection.
-            const steps = Math.ceil(dt / 0.004), h = dt / steps;
-            for (let step = 0; step < steps; step++) {
-              const dx = this.position.x - anchor.attachment.x;
-              const dy = this.position.y - anchor.attachment.y;
-              const radius = Math.max(1, Math.hypot(dx, dy));
-              const nx = dx / radius, ny = dy / radius;
-              const outward = this.velocity.x * nx + this.velocity.y * ny;
-              const extension = Math.max(0, radius - r.ropeLength);
-              const engagement = clamp((r.clock - 0.4) / 0.18, 0, 1);
-              const tension = extension > 0 ? Math.max(0, 90 * extension + 18 * outward) * engagement : 0;
-              const direction = Math.sign(anchor.attachment.x - r.from.x) || 1;
-              const pump = 120 * direction;
-              this.velocity.x += (-nx * tension + ny * pump) * h;
-              this.velocity.y += (500 - ny * tension - nx * pump) * h;
-              this.position.x += this.velocity.x * h;
-              this.position.y += this.velocity.y * h;
-            }
-            if (r.clock > 0.4 + r.duration * 0.6) r.index = r.swingReleaseIndex! + 1;
           } else this.move(waypoint, dt, i);
           r.progress = Math.max(
             r.progress,
             clamp((r.clock - 0.4) / r.duration, 0, 0.99),
           );
-          if (!(swinging && r.click) && dist(this.position, waypoint) < 1) {
+          if (dist(this.position, waypoint) < 1) {
             r.index++;
             r.progress = (r.index - 1) / (r.path.length - 1);
           }

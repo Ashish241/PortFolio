@@ -631,3 +631,5 @@
 .education-timeline em { color: #ff9ead; font-size: 11px; font-style: normal; }
 @keyframes timeline-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .education-timeline li { animation: none; } }
+
+.spidey-impact-web.decorative { width:57.2px; height:57.2px; }

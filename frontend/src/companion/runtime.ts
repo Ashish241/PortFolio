@@ -1,6 +1,6 @@
 import { AnchorManager } from "../three/AnchorManager";
 import { CompanionEngine, type MotionInput, type Point, type Target } from "./engine";
-import { eligibleWebClick } from "./clickSwing";
+import { eligibleWebClick } from "./decorativeWeb";
 import { ImpactWeb } from "./impactWeb";
 import { companionEvents, NAV_ITEMS } from "./events";
 // Renderer changes reuse motion state; resize never becomes a visible relocation.
@@ -28,24 +28,10 @@ export class CompanionRuntime {
   private shoulderUsed = false;
   private lastCtaReaction = -10;
   private pointerStart: Point | null = null;
-  private pendingClick: { anchor: Target; impact: ImpactWeb; expiresAt: number } | null = null;
-  private activeClick: { anchor: Target; impact: ImpactWeb } | null = null;
   private travelImpact: ImpactWeb | null = null;
-  private clickSerial = 0;
-  private clickTrace: Record<string, unknown> = {};
-  private clickAt = 0;
-  private diagnostic: HTMLElement | null = null;
   private pointerDown = (event: PointerEvent) => {
     this.pointerStart = event.pointerType === "mouse" && event.button === 0
       ? { x: event.clientX, y: event.clientY } : null;
-  };
-  private cancelClick = () => {
-    this.pendingClick?.impact.release();
-    this.pendingClick = null;
-    if (!this.activeClick) return;
-    this.engine.cancelClickSwing();
-    this.activeClick.impact.release();
-    this.activeClick = null;
   };
   private pointer = (e: PointerEvent) => {
     if (e.pointerType === "mouse") {
@@ -54,7 +40,6 @@ export class CompanionRuntime {
     }
   };
   private scroll = () => {
-    this.cancelClick();
     const now = performance.now() / 1000,
       dy = window.scrollY - this.scrollY;
     this.scrollVelocity = dy / Math.max(0.016, now - this.scrollTime);
@@ -62,8 +47,6 @@ export class CompanionRuntime {
     this.scrollTime = this.scrollAt = now;
   };
   private click = (e: MouseEvent) => {
-    this.clickAt = performance.now();
-    this.clickTrace = { detected: true, coordinates: { x: e.clientX, y: e.clientY }, previousState: this.engine.state, previousController: this.engine.route ? "route" : "support", accepted: false, reason: "excluded control, drag, scroll, mobile or unavailable target" };
     const link = (e.target as Element)?.closest<HTMLAnchorElement>(
       'a[href^="#"]',
     );
@@ -76,23 +59,9 @@ export class CompanionRuntime {
       Math.hypot(e.clientX - this.pointerStart.x, e.clientY - this.pointerStart.y) <= 8 &&
       performance.now() / 1000 - this.scrollAt > 0.35 &&
       eligibleWebClick(e, this.mobile, this.reduced)) {
-      const point = { x: e.clientX, y: e.clientY };
-      const length = Math.hypot(point.x - this.engine.position.x, point.y - this.engine.position.y);
-      if (this.engine.initialized && point.y < this.engine.position.y - 35 && length >= 90 && length <= 520) {
-        const anchor: Target = {
-          id: `click-web-${++this.clickSerial}`, objectId: "click-impact",
-          section: this.section, elementType: "click-impact", roles: ["WEB_ANCHOR"],
-          attachment: point, ...point, verified: true, poses: ["SWING_SHORT"],
-          priority: 9, visibility: 1, mobileEnabled: false,
-          offset: { x: 0, y: 0 }, width: 88, height: 88,
-        };
-        this.pendingClick?.impact.release();
-        this.activeClick?.impact.release();
-        this.activeClick = null;
-        this.clickTrace.reason = "awaiting next runtime frame";
-        this.pendingClick = { anchor, impact: new ImpactWeb(point, this.reduced), expiresAt: performance.now() / 1000 + 5 };
-        this.pendingClick.impact.element.classList.add("interactive");
-      }
+      const impact = new ImpactWeb({ x: e.clientX, y: e.clientY }, this.reduced);
+      impact.element.classList.add("decorative");
+      window.setTimeout(() => impact.release(), 650);
     }
     this.pointerStart = null;
   };
@@ -113,7 +82,6 @@ export class CompanionRuntime {
     if (!mobile && !reduced)
       window.addEventListener("pointermove", this.pointer, { passive: true });
     window.addEventListener("scroll", this.scroll, { passive: true });
-    window.addEventListener("resize", this.cancelClick);
     document.addEventListener("pointerdown", this.pointerDown, { passive: true });
     document.addEventListener("click", this.click);
     document.addEventListener("pointerover", this.hover, { passive: true });
@@ -138,11 +106,9 @@ export class CompanionRuntime {
       if (e.type === "SPIDEY_CLICK" || e.type === "CTA_HOVER")
         this.engine.userAction(performance.now() / 1000);
       if (e.type === "USER_NAVIGATE") {
-        this.cancelClick();
-        this.section = e.section ?? this.section;
+            this.section = e.section ?? this.section;
         this.engine.navigate(this.section);
       }
-      if (e.type === "AI_OPEN" || e.type === "HIDE_SPIDEY") this.cancelClick();
       if (e.type.startsWith("AI_"))
         window.dispatchEvent(new Event("companion-layout"));
     });
@@ -227,49 +193,17 @@ export class CompanionRuntime {
           companionEvents.ai !== "closed" || !!document.querySelector(".assistant-panel"),
         ),
     };
-    if ((import.meta.env?.DEV || import.meta.env?.VITE_SPIDEY_DIAGNOSTICS === "enabled") && new URLSearchParams(location.search).has("webDebug") && !this.diagnostic) {
-      this.diagnostic = document.createElement("pre");
-      this.diagnostic.id = "web-runtime-diagnostics";
-      this.diagnostic.style.cssText = "position:fixed;right:8px;top:90px;z-index:9999;max-width:420px;max-height:65vh;overflow:auto;pointer-events:none;background:#07101feb;color:#b9f8db;font:11px monospace;padding:12px";
-      document.body.append(this.diagnostic);
-    }
     if (input.navbar) input.targets.push(input.navbar);
-    if (this.pendingClick) {
-      const pending = this.pendingClick;
-      if (now >= pending.expiresAt) {
-        pending.impact.release();
-        this.pendingClick = null;
-      } else {
-        input.targets.push(pending.anchor);
-        const previousRoute = this.engine.route;
-        const accepted = this.engine.startClickSwing(pending.anchor, input);
-        Object.assign(this.clickTrace, { accepted, reason: accepted ? "executed" : "no safe constrained trajectory or higher priority state", interrupted: accepted && !!previousRoute, aimMs: accepted ? performance.now() - this.clickAt : null });
-        if (accepted) this.activeClick = { anchor: pending.anchor, impact: pending.impact };
-        else pending.impact.release();
-        this.pendingClick = null;
-        if (!this.activeClick) input.targets.pop();
-      }
-    }
-    if (this.activeClick && !input.targets.some(t => t.id === this.activeClick?.anchor.id))
-      input.targets.push(this.activeClick.anchor);
     const before = { ...this.engine.position },
       oldWeb =
         this.engine.web.extension === 1 ? this.engine.activeWebAnchor : null,
       oldSupport = this.engine.supportAnchor?.id,
       initialized = this.engine.initialized;
     this.engine.tick(dt, input);
-    if (this.activeClick && !this.engine.route?.click) {
-      this.activeClick.impact.release();
-      this.activeClick = null;
-    }
-    if (this.activeClick && this.engine.web.visible && this.clickTrace.webMs === undefined)
-      this.clickTrace.webMs = performance.now() - this.clickAt;
-    if (this.diagnostic) this.diagnostic.textContent = JSON.stringify({ ...this.clickTrace, state: this.engine.state, controller: this.engine.route?.click ? "user click" : this.engine.route ? "autonomous route" : "support/recovery", position: this.engine.position, velocity: this.engine.velocity, direction: Math.sign(this.engine.velocity.x), anchor: this.engine.web.visible ? this.engine.web.anchor : null, landing: this.engine.route?.target.id, phase: this.engine.route?.phase, completed: !this.engine.route && !!this.engine.supportAnchor }, null, 2);
     const newWeb =
       this.engine.web.extension === 1 ? this.engine.activeWebAnchor : null;
     if (newWeb?.id !== oldWeb?.id) {
       if (oldWeb) this.anchors.play(oldWeb, this.engine.velocity, "release");
-      if (oldWeb?.id.startsWith("click-web-")) this.activeClick?.impact.release();
       this.travelImpact?.release();
       this.travelImpact = null;
       if (newWeb)
@@ -281,7 +215,7 @@ export class CompanionRuntime {
           },
           "tension",
         );
-      if (newWeb && !newWeb.id.startsWith("click-web-")) {
+      if (newWeb) {
         this.travelImpact = new ImpactWeb(newWeb.attachment, this.reduced);
         if (newWeb.elementType === "navbar" || newWeb.elementType === "heading")
           this.travelImpact.element.classList.add("subtle");
@@ -429,11 +363,6 @@ export class CompanionRuntime {
     return { engine: this.engine, visible };
   }
   dispose() {
-    this.pendingClick?.impact.dispose();
-    this.pendingClick = null;
-    this.engine.cancelClickSwing();
-    this.activeClick?.impact.dispose();
-    this.activeClick = null;
     this.travelImpact?.dispose();
     this.travelImpact = null;
     rememberedEngine = this.engine;
@@ -442,14 +371,12 @@ export class CompanionRuntime {
     this.observer.disconnect();
     this.anchors.dispose();
     this.debug?.remove();
-    this.diagnostic?.remove();
     this.replayButton?.remove();
     document
       .querySelectorAll(".companion-anchor-debug")
       .forEach((e) => e.remove());
     window.removeEventListener("pointermove", this.pointer);
     window.removeEventListener("scroll", this.scroll);
-    window.removeEventListener("resize", this.cancelClick);
     document.removeEventListener("pointerdown", this.pointerDown);
     document.removeEventListener("click", this.click);
     document.removeEventListener("pointerover", this.hover);

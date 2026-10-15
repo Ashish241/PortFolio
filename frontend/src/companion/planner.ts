@@ -103,6 +103,7 @@ function edge(
               Math.min(700, Math.max(160, d * 1.8)) &&
             (!i.recentWebAnchors?.includes(t.id) || t.elementType !== "navbar"),
         )
+        .filter((t) => Math.abs(end.x - from.x) < 30 || (t.attachment.x - from.x) * (end.x - from.x) > 0)
         .filter((t) => corridor?.every((p) => p.y > t.attachment.y + 15))
         .sort(
           (a, b) =>
