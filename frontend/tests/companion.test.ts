@@ -536,3 +536,26 @@ test("crawl stays on one continuous card edge and never bridges separate objects
     "JUMP_SHORT",
   );
 });
+
+test('mobile scroll stop seeks an upright perch rather than a hanging support',()=>{
+ const e=new CompanionEngine(390,844);e.introDone=true;
+ const perch=target('phone-perch',190,450),hang=target('phone-hang',200,150,true);
+ const navbar={...web,id:'navbar-scroll',x:190,y:80,attachment:{x:190,y:80},elementType:'navbar'};
+ const config={mobile:true,width:390,height:844,targets:[perch,hang,navbar],navbar};
+ advance(e,0,.5,{...config,scrolling:true,scrollVelocity:300});
+ for(let n=0;n<250;n++){e.tick(.02,input({...config,now:.5+n*.02}));if(e.state==="PERCHED"&&!e.web.visible)break;}
+ assert.ok(e.supportAnchor?.roles.includes('PERCH_ANCHOR'));
+ assert.equal(e.suspended,false);assert.equal(e.web.visible,false);
+});
+
+
+test('mobile no-perch fallback becomes upright idle without inventing support and resumes scrolling',()=>{
+ const e=new CompanionEngine(390,844);e.introDone=true;
+ const navbar={...web,id:'navbar-scroll',x:190,y:80,attachment:{x:190,y:80},elementType:'navbar'};
+ navbar.roles=['WEB_ANCHOR','HANG_ANCHOR'];
+ const config={mobile:true,width:390,height:844,targets:[navbar],navbar};
+ advance(e,0,.5,{...config,scrolling:true,scrollVelocity:300});
+ advance(e,.5,4,config);
+ assert.equal(e.state,'IDLE');assert.equal(e.supportAnchor,null);assert.equal(e.safeIdle,true);assert.equal(e.web.visible,false);assert.ok(Math.abs(e.rotation)<.01);
+ advance(e,5,.3,{...config,scrolling:true});assert.equal(e.safeIdle,false);assert.equal(e.state,'SCROLL_RAPPELLING');
+});

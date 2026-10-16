@@ -134,7 +134,7 @@ export class CompanionRuntime {
   }
   tick(dt: number) {
     const now = performance.now() / 1000;
-    const scrolling = now - this.scrollAt < 0.2;
+    const scrolling = now - this.scrollAt < 0.3;
     if (
       now - this.lastSectionCheck > 0.25 ||
       (this.wasScrolling && !scrolling)
@@ -162,8 +162,8 @@ export class CompanionRuntime {
       height: window.innerHeight,
       now,
       section: this.section,
-      scrolling: now - this.scrollAt < 0.2,
-      scrollVelocity: now - this.scrollAt < 0.2 ? this.scrollVelocity : 0,
+      scrolling: now - this.scrollAt < 0.3,
+      scrollVelocity: now - this.scrollAt < 0.3 ? this.scrollVelocity : 0,
       cursor: this.cursor,
       cursorActive: !this.mobile && now - this.cursorAt < 0.13,
       ai: companionEvents.ai,
@@ -225,6 +225,7 @@ export class CompanionRuntime {
     if (newWeb && this.travelImpact) this.travelImpact.move(newWeb.attachment);
     if (this.engine.introDone) sessionStorage.setItem("spidey-intro", "true");
     companionEvents.safeForAssistant(
+      this.engine.safeIdle || this.engine.state === "SAFE_RECOVERY" ||
       (this.engine.suspended && this.engine.web.extension === 1) ||
         !this.engine.initialized ||
         (!!this.engine.supportAnchor && !this.engine.route),

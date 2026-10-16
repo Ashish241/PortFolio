@@ -21,9 +21,12 @@ export function impactWebPath(spokes = 10, rings = 4): string {
 }
 
 export class ImpactWeb {
+  private static live = new Set<ImpactWeb>();
   readonly element: SVGSVGElement;
   private timer: number | null = null;
   constructor(point: Point, reduced = false) {
+    if (ImpactWeb.live.size >= 12) ImpactWeb.live.values().next().value?.dispose();
+    ImpactWeb.live.add(this);
     const ns = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(ns, "svg");
     svg.setAttribute("viewBox", "-46 -46 92 92");
@@ -58,5 +61,6 @@ export class ImpactWeb {
     if (this.timer !== null) window.clearTimeout(this.timer);
     this.timer = null;
     this.element.remove();
+    ImpactWeb.live.delete(this);
   }
 }

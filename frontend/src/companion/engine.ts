@@ -27,6 +27,7 @@ export type State =
   | "NAVBAR_DETACH"
   | "SCROLL_STOP_EXIT"
   | "ENTERING"
+  | "SAFE_RECOVERY"
   | "IDLE"
   | "PERCHED"
   | "CROUCHING"
@@ -174,6 +175,10 @@ export class CompanionEngine {
   private navbarMode = false;
   private navbarClock = 0;
   private scrollStoppedAt = 0;
+  private recoveryAttemptAt = 0;
+  private recoverySupport: string | null = null;
+  private recovery: { from: Point; velocity: Point; elapsed: number } | null = null;
+  safeIdle = false;
   private ropeY = 0;
   region(i: Pick<MotionInput, "width" | "height">, p = this.position) {
     return `${Math.min(2, Math.floor((p.x / i.width) * 3))}:${Math.min(2, Math.floor((p.y / i.height) * 3))}`;
@@ -213,6 +218,8 @@ export class CompanionEngine {
     this.userUntil = now + 0.5;
   }
   navigate(section: string) {
+    this.safeIdle = false;
+    this.recovery = null;
     this.introDone = true;
     if (section) this.section = "";
     this.nextAction = 0;
@@ -235,7 +242,7 @@ export class CompanionEngine {
         t.id !== this.supportAnchor?.id &&
         (!this.shoulderDone || t.elementType !== "shoulder"),
     );
-    const local = all.filter((t) => t.elementType !== "navbar");
+    const local = all.filter((t) => t.elementType !== "navbar" && (!i.mobile || (t.roles.includes("PERCH_ANCHOR") && !t.roles.includes("HANG_ANCHOR"))));
     const candidates = local.length ? local : all;
     const weighted = candidates.map((t) => {
       const region = this.region(i, supportedPosition(t, i.mobile));
@@ -268,6 +275,7 @@ export class CompanionEngine {
     if (!anchor?.verified || anchor.visibility < 0.25) return false;
     if (!this.navbarMode) {
       this.navbarMode = true;
+      this.recoverySupport = null;
       this.recentWebAnchors = [...this.recentWebAnchors.slice(-4), anchor.id];
       this.navbarClock = 0;
       this.ropeY = this.position.y;
@@ -305,11 +313,13 @@ export class CompanionEngine {
     if (
       !i.scrolling &&
       i.ai === "closed" &&
-      i.now - this.scrollStoppedAt > 1.2
+      i.now - this.scrollStoppedAt > (i.mobile ? 0.35 : 1.2) &&
+      (!i.mobile || i.now >= this.recoveryAttemptAt)
     ) {
+      this.recoveryAttemptAt = i.now + 0.35;
       this.trace("ANCHOR_SELECTION");
       const candidates = this.supports(i)
-        .filter((t) => t.elementType !== "navbar")
+        .filter((t) => t.elementType !== "navbar" && (!i.mobile || (t.roles.includes("PERCH_ANCHOR") && !t.roles.includes("HANG_ANCHOR"))))
         .sort((a, b) => dist(this.position, a) - dist(this.position, b));
       for (const target of candidates) {
         if (this.plan(target, { ...i, escapingNavbar: true })) {
@@ -318,6 +328,33 @@ export class CompanionEngine {
           this.trace("NAVBAR_DETACH");
           this.routeAttemptAfter = i.now + 0.4;
           break;
+        }
+      }
+      if (i.mobile && this.navbarMode && i.now - this.scrollStoppedAt > 1.4) {
+        // Emergency clearance relaxes content exclusions, never viewport or real-support requirements.
+        const target = i.targets.filter(t => this.valid(t) && t.roles.includes("PERCH_ANCHOR") && !t.roles.includes("HANG_ANCHOR") && t.elementType !== "navbar")
+          .filter(t => { const p = supportedPosition(t, true); return p.x >= 30 && p.x <= i.width-30 && p.y >= 55 && p.y <= i.height-55; })
+          .sort((a,b)=>dist(this.position,supportedPosition(a,true))-dist(this.position,supportedPosition(b,true)))[0];
+        if (target) {
+          const end = supportedPosition(target, true);
+          this.recoverySupport = target.id;
+          this.remainingRoute = [];
+          this.startLeg({target, path:[{...this.position},end], webId:null, pose:"JUMP_SHORT", steps:["RELEASE","LAND"], duration:Math.max(.5,dist(this.position,end)/250)});
+          this.navbarMode = false;
+          this.navigationTarget = target;
+          this.trace("SAFE_RECOVERY");
+        } else {
+          // An explicit unsupported rest, never advertised as a DOM landing.
+          this.recovery = {from:{...this.position},velocity:{...this.velocity},elapsed:0};
+          this.navbarMode = false;
+          this.route = null;
+          this.remainingRoute = [];
+          this.supportAnchor = null;
+          this.suspended = false;
+          this.web.visible = false;
+          this.web.extension = 0;
+          this.activeWebAnchor = null;
+          this.state = "SAFE_RECOVERY";
         }
       }
     }
@@ -433,6 +470,30 @@ export class CompanionEngine {
       }
     }
 
+    if (i.scrolling && (this.recovery || this.safeIdle)) {
+      this.recovery = null;
+      this.safeIdle = false;
+    }
+    if (this.recovery || this.safeIdle) {
+      const end = {x: Math.min(i.width-35, Math.max(35,this.recovery?.from.x ?? this.position.x)), y: Math.min(i.height-100,Math.max(140,i.height*.32))};
+      if (this.recovery) {
+        const r=this.recovery;
+        r.elapsed+=dt;
+        const u=Math.min(1,r.elapsed/1.1), a=2*u*u*u-3*u*u+1, b=u*u*u-2*u*u+u, c=-2*u*u*u+3*u*u;
+        const previous={...this.position};
+        this.position={x:a*r.from.x+b*1.1*r.velocity.x+c*end.x,y:a*r.from.y+b*1.1*r.velocity.y+c*end.y};
+        this.velocity={x:(this.position.x-previous.x)/dt,y:(this.position.y-previous.y)/dt};
+        this.state="SAFE_RECOVERY";
+        if(u===1){this.recovery=null;this.safeIdle=true;this.velocity={x:0,y:0};}
+      } else {
+        this.move(end,dt,i);
+        this.state="IDLE";
+      }
+      this.rotation+=(0-this.rotation)*(1-Math.exp(-dt*10));
+      this.web.visible=false;
+      this.activeWebAnchor=null;
+      return;
+    }
     if (
       (this.navbarMode || (i.scrolling && i.ai === "closed")) &&
       this.scrollMotion(dt, i)
@@ -455,7 +516,7 @@ export class CompanionEngine {
         !support ||
         !point ||
         dist(this.position, point) > 2 ||
-        !i.safe(point, support.elementType === "shoulder")
+        (!i.safe(point, support.elementType === "shoulder") && support.id !== this.recoverySupport)
       ) {
         this.supportAnchor = null;
         this.suspended = false;
