@@ -1,3 +1,4 @@
+import { viewportScale } from "../companion/phoneScale";
 import { useEffect, useRef } from "react";
 import { CompanionRuntime } from "../companion/runtime";
 import { companionEvents } from "../companion/events";
@@ -20,15 +21,16 @@ export function SpiderFallback({
     const draw = (now: number) => {
       if (!document.hidden && button.current) {
         const { engine: e, visible } = runtime.tick((now - last) / 1000);
-        button.current.style.transform = `translate3d(${e.position.x - 23}px,${e.position.y - 35}px,0) rotate(${e.rotation}rad)`;
+        button.current.style.transformOrigin = "23px 35px";
+        button.current.style.transform = `translate3d(${e.position.x - 23}px,${e.position.y - 35}px,0) rotate(${e.rotation}rad) scale(${viewportScale()})`;
         button.current.style.opacity = visible ? "1" : "0";
         button.current.style.pointerEvents = visible ? "auto" : "none";
         button.current.tabIndex = visible ? 0 : -1;
         button.current.dataset.state = e.state;
         if (webLine.current) {
           const start = {
-            x: e.position.x + (e.suspended ? 0 : -7),
-            y: e.position.y + (e.suspended ? -34 : 20),
+            x: e.position.x + (e.suspended ? 0 : -7) * viewportScale(),
+            y: e.position.y + (e.suspended ? -34 : 20) * viewportScale(),
           };
           webLine.current.setAttribute("x1", String(start.x));
           webLine.current.setAttribute("y1", String(start.y));

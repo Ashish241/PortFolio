@@ -1,3 +1,4 @@
+import { viewportScale } from "./phoneScale";
 /** Supported motion only. The engine is the single authority for visible position. */
 import { safePath } from "./path";
 import { planTraversal, type TravelLeg } from "./planner";
@@ -109,11 +110,11 @@ export interface Route {
 const clamp = (n: number, l: number, h: number) => Math.max(l, Math.min(h, n));
 const dist = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 export const footOffset = (mobile: boolean, crouch = 0) => {
-  void mobile; // Both responsive layouts use the same 47px principal model.
+  void mobile; // Phone sizing follows viewport width, independent of pointer type.
   const a = 1.4 * crouch,
     c = Math.cos(a),
     s = Math.sin(a);
-  return 47 * (0.57 + 0.57 * c - 0.07 * s + Math.hypot(0.085 * c, 0.21 * s));
+  return 47 * viewportScale() * (0.57 + 0.57 * c - 0.07 * s + Math.hypot(0.085 * c, 0.21 * s));
 };
 export function supportedPosition(
   t: Target,
@@ -124,7 +125,7 @@ export function supportedPosition(
     x: t.attachment.x,
     y:
       t.attachment.y +
-      (t.roles.includes("HANG_ANCHOR") ? 95 : -footOffset(mobile, crouch)),
+      (t.roles.includes("HANG_ANCHOR") ? 95 * viewportScale() : -footOffset(mobile, crouch)),
   };
 }
 export class CompanionEngine {

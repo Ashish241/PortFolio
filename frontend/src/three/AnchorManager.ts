@@ -1,3 +1,4 @@
+import { viewportScale } from "../companion/phoneScale";
 import {
   supportedPosition,
   type Point,
@@ -540,8 +541,8 @@ export class AnchorManager {
     };
   }
   safe(p: Point, mobile = false, shoulder = false, ignoreAssistant = false) {
-    const w = 32,
-      h = 55;
+    const w = 32 * viewportScale(),
+      h = 55 * viewportScale();
     void mobile;
     if (p.x < w || p.x > innerWidth - w || p.y < h || p.y > innerHeight - h)
       return false;

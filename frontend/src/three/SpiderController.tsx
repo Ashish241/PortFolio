@@ -1,3 +1,4 @@
+import { phoneScale } from "../companion/phoneScale";
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Group, Vector3, MathUtils } from "three";
@@ -55,7 +56,7 @@ export function SpiderController({
     const mapY = (y: number) => (0.5 - y / size.height) * viewport.height;
     root.current.visible = visible;
     root.current.position.set(mapX(e.position.x), mapY(e.position.y), 0);
-    root.current.scale.setScalar((viewport.height / size.height) * 47);
+    root.current.scale.setScalar((viewport.height / size.height) * 47 * phoneScale(size.width));
     root.current.rotation.z = MathUtils.damp(
       root.current.rotation.z,
       e.rotation,
@@ -225,7 +226,7 @@ export function SpiderController({
     if (button.current) {
       // Rotate the hit target with the rendered body, including inverted and sideways poses.
       button.current.style.transformOrigin = "48px 76px";
-      button.current.style.transform = `translate3d(${e.position.x - 48}px,${e.position.y - 76}px,0) rotate(${-root.current.rotation.z}rad)`;
+      button.current.style.transform = `translate3d(${e.position.x - 48}px,${e.position.y - 76}px,0) rotate(${-root.current.rotation.z}rad) scale(${phoneScale(size.width)})`;
       button.current.style.opacity = visible ? "1" : "0";
       button.current.style.pointerEvents = visible ? "auto" : "none";
       button.current.tabIndex = visible ? 0 : -1;

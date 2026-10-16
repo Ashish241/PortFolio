@@ -1,5 +1,6 @@
+import { TapGesture } from "./tapGesture";
 import { AnchorManager } from "../three/AnchorManager";
-import { CompanionEngine, type MotionInput, type Point, type Target } from "./engine";
+import { CompanionEngine, type MotionInput, type Target } from "./engine";
 import { eligibleWebClick } from "./decorativeWeb";
 import { ImpactWeb } from "./impactWeb";
 import { companionEvents, NAV_ITEMS } from "./events";
@@ -27,11 +28,16 @@ export class CompanionRuntime {
   private replayButton: HTMLButtonElement | null = null;
   private shoulderUsed = false;
   private lastCtaReaction = -10;
-  private pointerStart: Point | null = null;
+  private gesture = new TapGesture();
   private travelImpact: ImpactWeb | null = null;
-  private pointerDown = (event: PointerEvent) => {
-    this.pointerStart = event.pointerType === "mouse" && event.button === 0
-      ? { x: event.clientX, y: event.clientY } : null;
+  private pointerDown = (e: PointerEvent) => this.gesture.down(e, performance.now());
+  private gestureMove = (e: PointerEvent) => this.gesture.move(e);
+  private pointerCancel = (e: PointerEvent) => this.gesture.cancelled(e);
+  private pointerUp = (e: PointerEvent) => {
+    if (!this.gesture.up(e, performance.now()) || performance.now()/1000-this.scrollAt<0.35 || !eligibleWebClick(e, this.mobile, this.reduced)) return;
+    const impact = new ImpactWeb({x:e.clientX,y:e.clientY},this.reduced);
+    impact.element.classList.add("decorative");
+    window.setTimeout(()=>impact.release(),650);
   };
   private pointer = (e: PointerEvent) => {
     if (e.pointerType === "mouse") {
@@ -40,6 +46,7 @@ export class CompanionRuntime {
     }
   };
   private scroll = () => {
+    this.gesture.cancel();
     const now = performance.now() / 1000,
       dy = window.scrollY - this.scrollY;
     this.scrollVelocity = dy / Math.max(0.016, now - this.scrollTime);
@@ -55,15 +62,6 @@ export class CompanionRuntime {
         type: "USER_NAVIGATE",
         section: link.hash.slice(1),
       });
-    if (this.pointerStart &&
-      Math.hypot(e.clientX - this.pointerStart.x, e.clientY - this.pointerStart.y) <= 8 &&
-      performance.now() / 1000 - this.scrollAt > 0.35 &&
-      eligibleWebClick(e, this.mobile, this.reduced)) {
-      const impact = new ImpactWeb({ x: e.clientX, y: e.clientY }, this.reduced);
-      impact.element.classList.add("decorative");
-      window.setTimeout(() => impact.release(), 650);
-    }
-    this.pointerStart = null;
   };
   private hover = (e: PointerEvent) => {
     const target = (e.target as Element)?.closest(".hero-buttons,.project-card,.featured-project");
@@ -83,6 +81,9 @@ export class CompanionRuntime {
       window.addEventListener("pointermove", this.pointer, { passive: true });
     window.addEventListener("scroll", this.scroll, { passive: true });
     document.addEventListener("pointerdown", this.pointerDown, { passive: true });
+    document.addEventListener("pointermove", this.gestureMove, { passive: true });
+    document.addEventListener("pointerup", this.pointerUp, { passive: true });
+    document.addEventListener("pointercancel", this.pointerCancel, { passive: true });
     document.addEventListener("click", this.click);
     document.addEventListener("pointerover", this.hover, { passive: true });
     this.observer = new IntersectionObserver(
@@ -378,6 +379,9 @@ export class CompanionRuntime {
     window.removeEventListener("pointermove", this.pointer);
     window.removeEventListener("scroll", this.scroll);
     document.removeEventListener("pointerdown", this.pointerDown);
+    document.removeEventListener("pointermove", this.gestureMove);
+    document.removeEventListener("pointerup", this.pointerUp);
+    document.removeEventListener("pointercancel", this.pointerCancel);
     document.removeEventListener("click", this.click);
     document.removeEventListener("pointerover", this.hover);
   }
