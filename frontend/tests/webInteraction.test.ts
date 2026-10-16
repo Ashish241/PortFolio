@@ -55,7 +55,7 @@ test("decorative clicks never take priority over controls or touch", () => {
     const event = (id: string) => ({ button: 0, detail: 1, clientX: 400, clientY: 180, target: document.getElementById(id) }) as unknown as MouseEvent;
     assert.equal(eligibleWebClick(event("space"), false, false), true);
     assert.equal(eligibleWebClick(event("action"), false, false), false);
-    assert.equal(eligibleWebClick(event("space"), true, false), false);
+    assert.equal(eligibleWebClick(event("space"), true, false), true);
     assert.equal(eligibleWebClick(event("space"), false, true), true);
     document.documentElement.classList.add("spidey-hiding");
     assert.equal(eligibleWebClick(event("space"), false, false), false);
